@@ -11,12 +11,6 @@ public class Test implements Runnable {
             System.out.println("Hello");
             this.num = this.num + 1;
         }
-//        try {
-//            Thread.sleep(120_000);
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-
     }
 
     public static void main(String[] args) {
