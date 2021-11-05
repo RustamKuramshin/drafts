@@ -1,6 +1,7 @@
 package com.rustam.dev.concurrency;
 
 public class SimpleThreads {
+
     // Display a message, preceded by
     // the name of the current thread
     static void threadMessage(String message) {
@@ -11,12 +12,13 @@ public class SimpleThreads {
     private static class MessageLoop implements Runnable {
         public void run() {
             String[] importantInfo = {"Mares eat oats", "Does eat oats", "Little lambs eat ivy", "A kid will eat ivy too"};
+
             try {
-                for (String s : importantInfo) {
+                for (int i = 0; i < importantInfo.length; i++) {
                     // Pause for 4 seconds
                     Thread.sleep(4000);
                     // Print a message
-                    threadMessage(s);
+                    threadMessage(importantInfo[i]);
                 }
             } catch (InterruptedException e) {
                 threadMessage("I wasn't done!");
@@ -24,7 +26,7 @@ public class SimpleThreads {
         }
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String args[]) throws InterruptedException {
 
         // Delay, in milliseconds before
         // we interrupt MessageLoop
@@ -57,7 +59,8 @@ public class SimpleThreads {
             // for MessageLoop thread
             // to finish.
             t.join(1000);
-            if (((System.currentTimeMillis() - startTime) > patience) && t.isAlive()) {
+            if (((System.currentTimeMillis() - startTime) > patience)
+                    && t.isAlive()) {
                 threadMessage("Tired of waiting!");
                 t.interrupt();
                 // Shouldn't be long now
@@ -65,6 +68,6 @@ public class SimpleThreads {
                 t.join();
             }
         }
-
+        threadMessage("Finally!");
     }
 }
