@@ -28,14 +28,10 @@ public class FJ extends RecursiveTask<Integer> {
 
     public static void main(String[] args) throws ExecutionException, InterruptedException {
 
-        var p = new ForkJoinPool();
-
-        FJ calculator = new FJ(400);
-
-        p.execute(calculator);
-
-        var r = calculator.get();
+        var r = new ForkJoinPool().invoke(new FJ(4));
 
         System.out.println(r);
+
+        System.out.println(Runtime.getRuntime().availableProcessors());
     }
 }
