@@ -1,4 +1,4 @@
-package com.rustam.dev
+package com.rustam.dev.other
 
 data class Person(var name: String, var age: Int)
 
