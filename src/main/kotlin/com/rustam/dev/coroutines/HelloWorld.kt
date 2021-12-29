@@ -1,13 +1,15 @@
 package com.rustam.dev.coroutines
 
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 
-suspend fun main() = coroutineScope {
-    launch {
-        delay(1000)
-        println("Kotlin Coroutines World!")
-    }
-    println("Hello")
+suspend fun t3() {
+    testSusp()
+}
+
+suspend fun testSusp(): String {
+    return pr("tst666")
+}
+
+suspend fun pr(msg: String): String {
+    return msg
 }
