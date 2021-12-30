@@ -1,0 +1,22 @@
+
+class <anonymous> private constructor(
+    completion: Continuation<Any?>
+): SuspendLambda<...>(completion) {
+
+    var label = 0
+
+    var a: A? = null
+    var y: Y? = null
+
+    fun invokeSuspend(result: Any?): Any? {
+        //Весь жир здесь :)
+    }
+
+    fun create(completion: Continuation<Any?>): Continuation<Any?> {
+        <anonymous>(completion)
+    }
+
+    fun invoke(completion: Continuation<Any?>): Any? {
+        create(completion).invokeSuspend(Unit)
+    }
+}

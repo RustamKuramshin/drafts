@@ -1,0 +1,51 @@
+val a = a()
+val y = foo(a).await()
+b()
+val z = bar(a, y).await()
+c(z)
+
+class <anonymous> private constructor(
+    completion: Continuation<Any?>
+): SuspendLambda<...>(completion) {
+
+    var label = 0
+
+    var a: A? = null
+    var y: Y? = null
+
+    fun invokeSuspend(result: Any?): Any? {
+        if (label == 0) goto L0
+        if (label == 1) goto L1
+        if (label == 2) goto L2
+        else throw IllegalStateException()
+
+        L0:
+        a = a()
+        label = 1
+        result = foo(a).await(this)
+        if (result == COROUTINE_SUSPENDED)
+            return COROUTINE_SUSPENDED
+        L1:
+        result.throwOnFailure()
+        y = (Y) result
+        b()
+        label = 2
+        result = bar(a, y).await(this)
+        if (result == COROUTINE_SUSPENDED)
+            return COROUTINE_SUSPENDED
+        L2:
+        result.throwOnFailure()
+        Z z = (Z) result
+        c(z)
+        label = -1
+        return Unit
+    }
+
+    fun create(completion: Continuation<Any?>): Continuation<Any?> {
+        <anonymous>(completion)
+    }
+
+    fun invoke(completion: Continuation<Any?>): Any? {
+        create(completion).invokeSuspend(Unit)
+    }
+}
