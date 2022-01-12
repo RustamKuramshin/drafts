@@ -30,7 +30,7 @@ public class SubtractionArrays {
                 }
 
                 // пропускаем совпадающие элементы
-                if (b.get(bi) == a.get(ai)) {
+                if (Objects.equals(b.get(bi), a.get(ai))) {
                     bi++;
                 } else if (b.get(bi) > a.get(ai)) {
                     res.add(a.get(ai));
