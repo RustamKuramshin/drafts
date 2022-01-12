@@ -3,30 +3,41 @@ package com.rustam.dev;
 import java.util.*;
 
 public class SubtractionArrays {
-
-    // return a - aANDb
+    // вычесть общие элементы из массива A
     public static List<Integer> subtract(List<Integer> a, List<Integer> b) {
 
         List<Integer> res = new ArrayList<>();
-        Iterator<Integer> aIter = a.iterator();
-        Iterator<Integer> bIter = b.iterator();
 
-        while (aIter.hasNext()) {
-            Integer aItem = aIter.next();
-            try {
-                Integer bItem = -1;
-                while (bItem < aItem) {
-                    bItem = bIter.next();
+        for (int ai = 0, bi = 0; ai < a.size(); ai++) {
+
+            // пока массив B не закончился сравниваем элементы
+            if (bi < b.size()) {
+
+                // сматываем элементы меньше текущего
+                if (b.get(bi) < a.get(ai)) {
+                    while (b.get(bi) < a.get(ai)) {
+                        bi++;
+                        if (bi > b.size() - 1) {
+                            res.add(a.get(ai));
+                            break;
+                        }
+                    }
                 }
 
-                if (bItem == aItem) {
-
-                } else if (bItem > aItem) {
-                    res.add(aItem);
+                // если массив B закончился, идем дальше по массиву A
+                if (bi > b.size() - 1) {
+                    continue;
                 }
 
-            } catch (NoSuchElementException e) {
-                res.add(aItem);
+                // пропускаем совпадающие элементы
+                if (b.get(bi) == a.get(ai)) {
+                    bi++;
+                } else if (b.get(bi) > a.get(ai)) {
+                    res.add(a.get(ai));
+                }
+
+            } else {
+                res.add(a.get(ai));
             }
         }
 
