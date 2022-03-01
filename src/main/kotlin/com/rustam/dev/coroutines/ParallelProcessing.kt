@@ -40,6 +40,7 @@ suspend fun main() {
 
                 val stringList = sequence.toList()
                 println("Файл содержит ${stringList.size} строк")
+                println("Будет создано ${stringList.size/chunkSize} чанков")
 
                 // Делим на чанки и отправляем каждый чанк в канал
                 stringList.chunked(chunkSize).forEach {
