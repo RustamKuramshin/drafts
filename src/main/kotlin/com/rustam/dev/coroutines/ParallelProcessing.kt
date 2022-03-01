@@ -5,17 +5,19 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 
 // Время одного элемента в чанке
 const val itemTime = 10L
 
 // Размер чанка -> [ [.....], [....], [...], [..], [.] ]
-const val chunkSize = 1000
+const val chunkSize = 100
 
 // Размер буфера -> (<---------->)
-const val bufferSize = 5
+const val bufferSize = 10
 
-var counter = 0;
+// Счетчик обработанных строк
+val counter = AtomicInteger(0)
 
 suspend fun main() {
 
@@ -54,6 +56,7 @@ suspend fun main() {
         launch {
             for (chunk in bufferedChannel) {
                 println("Получено из канала")
+                // Каждый чанк будет обрабатываться отдельной корутиной
                 launch {
                     processChunk(chunk)
                 }
@@ -69,6 +72,6 @@ suspend fun processChunk(chunk: List<String>) {
     chunk.forEach {
         delay(itemTime)
         println(it)
-        counter++
+        counter.incrementAndGet()
     }
 }
