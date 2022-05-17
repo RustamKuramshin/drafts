@@ -1,6 +1,5 @@
 package com.rustam.dev.coroutines
 
-import kotlin.coroutines.intrinsics.createCoroutineUnintercepted
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
 

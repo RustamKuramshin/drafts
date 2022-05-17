@@ -5,7 +5,7 @@ import kotlin.coroutines.CoroutineContext;
 import kotlin.coroutines.EmptyCoroutineContext;
 import org.jetbrains.annotations.NotNull;
 
-public class Test {
+public class Interoperability {
     public static void main(String[] args) {
         Continuation<String> continuation = new Continuation<String>() {
             @Override
@@ -18,6 +18,6 @@ public class Test {
             }
         };
 
-        var res = TestKt.suspendFunction(continuation);
+        var res = Coroutines3Kt.suspendFunction(continuation);
     }
 }
