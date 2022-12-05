@@ -9,16 +9,17 @@ public class Solution {
     public boolean isIsomorphic(String s, String t) {
 
         if (!equals(s, t)) {
-            char[] mainMap = new char[254];
+
+            byte[] mainMap = new byte[254];
 
             for (int i = 0; i < s.length(); i++) {
 
-                char key = s.charAt(i);
-                char value = t.charAt(i);
+                byte key = (byte) s.charAt(i);
+                byte value = (byte) t.charAt(i);
 
-                char c = mainMap[key];
+                byte c = mainMap[key];
 
-                if (c == '\u0000') {
+                if (c == 0) {
                     if (mainMap[value + 127] != '\u0000') {
                         return false;
                     }
