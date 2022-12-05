@@ -10,21 +10,21 @@ public class Solution {
 
         if (!equals(s, t)) {
 
-            byte[] mainMap = new byte[254];
+            byte[] map = new byte[254];
 
             for (int i = 0; i < s.length(); i++) {
 
                 byte key = (byte) s.charAt(i);
                 byte value = (byte) t.charAt(i);
 
-                byte c = mainMap[key];
+                byte c = map[key];
 
                 if (c == 0) {
-                    if (mainMap[value + 127] != 0) {
+                    if (map[value + 127] != 0) {
                         return false;
                     }
-                    mainMap[key] = value;
-                    mainMap[value + 127] = key;
+                    map[key] = value;
+                    map[value + 127] = key;
                 } else {
                     if (c != value) {
                         return false;
