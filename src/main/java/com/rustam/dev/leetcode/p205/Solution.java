@@ -11,10 +11,9 @@ public class Solution {
         for (int i = 0; i < s.length(); i++) {
 
             char key = s.charAt(i);
+            char value = t.charAt(i);
 
             Character c = map.get(key);
-
-            char value = t.charAt(i);
 
             if (c == null) {
                 if (map.containsValue(value)) {
