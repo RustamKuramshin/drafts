@@ -20,7 +20,7 @@ public class Solution {
                 byte c = mainMap[key];
 
                 if (c == 0) {
-                    if (mainMap[value + 127] != '\u0000') {
+                    if (mainMap[value + 127] != 0) {
                         return false;
                     }
                     mainMap[key] = value;
