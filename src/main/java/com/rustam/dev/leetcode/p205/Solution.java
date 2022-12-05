@@ -2,7 +2,7 @@ package com.rustam.dev.leetcode.p205;
 
 public class Solution {
 
-    private boolean contains(char[] arr, char f) {
+    private boolean arrayContains(char[] arr, char f) {
         for (char c : arr) {
             if (c == f) return true;
         }
@@ -21,7 +21,7 @@ public class Solution {
             char c = map[key];
 
             if (c == '\u0000') {
-                if (contains(map, value)) {
+                if (arrayContains(map, value)) {
                     return false;
                 }
                 map[key] = value;
