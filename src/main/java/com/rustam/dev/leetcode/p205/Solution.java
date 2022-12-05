@@ -2,10 +2,13 @@ package com.rustam.dev.leetcode.p205;
 
 public class Solution {
 
+    public static boolean equals(final String s1, final String s2) {
+        return s1 != null && s2 != null && s1.hashCode() == s2.hashCode() && s1.equals(s2);
+    }
+
     public boolean isIsomorphic(String s, String t) {
 
-        char[] mainMap = new char[256];
-        char[] secondMap = new char[256];
+        char[] mainMap = new char[260];
 
         for (int i = 0; i < s.length(); i++) {
 
@@ -15,11 +18,11 @@ public class Solution {
             char c = mainMap[key];
 
             if (c == '\u0000') {
-                if (secondMap[value] != '\u0000') {
+                if (mainMap[value+130] != '\u0000') {
                     return false;
                 }
                 mainMap[key] = value;
-                secondMap[value] = key;
+                mainMap[value+130] = key;
             } else {
                 if (c != value) {
                     return false;
