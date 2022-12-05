@@ -2,29 +2,24 @@ package com.rustam.dev.leetcode.p205;
 
 public class Solution {
 
-    private boolean arrayContains(char[] arr, char f) {
-        for (char c : arr) {
-            if (c == f) return true;
-        }
-        return false;
-    }
-
     public boolean isIsomorphic(String s, String t) {
 
-        char[] map = new char[256];
+        char[] mainMap = new char[256];
+        char[] secondMap = new char[256];
 
         for (int i = 0; i < s.length(); i++) {
 
             char key = s.charAt(i);
             char value = t.charAt(i);
 
-            char c = map[key];
+            char c = mainMap[key];
 
             if (c == '\u0000') {
-                if (arrayContains(map, value)) {
+                if (secondMap[value] != '\u0000') {
                     return false;
                 }
-                map[key] = value;
+                mainMap[key] = value;
+                secondMap[value] = key;
             } else {
                 if (c != value) {
                     return false;
