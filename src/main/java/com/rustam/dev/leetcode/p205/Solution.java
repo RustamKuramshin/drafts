@@ -9,7 +9,7 @@ public class Solution {
     public boolean isIsomorphic(String s, String t) {
 
         if (!equals(s, t)) {
-            char[] mainMap = new char[260];
+            char[] mainMap = new char[254];
 
             for (int i = 0; i < s.length(); i++) {
 
@@ -19,11 +19,11 @@ public class Solution {
                 char c = mainMap[key];
 
                 if (c == '\u0000') {
-                    if (mainMap[value + 130] != '\u0000') {
+                    if (mainMap[value + 127] != '\u0000') {
                         return false;
                     }
                     mainMap[key] = value;
-                    mainMap[value + 130] = key;
+                    mainMap[value + 127] = key;
                 } else {
                     if (c != value) {
                         return false;
