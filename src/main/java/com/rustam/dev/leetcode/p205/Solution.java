@@ -8,26 +8,29 @@ public class Solution {
 
     public boolean isIsomorphic(String s, String t) {
 
-        char[] mainMap = new char[260];
+        if (!equals(s, t)) {
+            char[] mainMap = new char[260];
 
-        for (int i = 0; i < s.length(); i++) {
+            for (int i = 0; i < s.length(); i++) {
 
-            char key = s.charAt(i);
-            char value = t.charAt(i);
+                char key = s.charAt(i);
+                char value = t.charAt(i);
 
-            char c = mainMap[key];
+                char c = mainMap[key];
 
-            if (c == '\u0000') {
-                if (mainMap[value+130] != '\u0000') {
-                    return false;
-                }
-                mainMap[key] = value;
-                mainMap[value+130] = key;
-            } else {
-                if (c != value) {
-                    return false;
+                if (c == '\u0000') {
+                    if (mainMap[value + 130] != '\u0000') {
+                        return false;
+                    }
+                    mainMap[key] = value;
+                    mainMap[value + 130] = key;
+                } else {
+                    if (c != value) {
+                        return false;
+                    }
                 }
             }
+
         }
 
         return true;
