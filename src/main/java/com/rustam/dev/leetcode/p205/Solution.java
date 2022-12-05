@@ -1,27 +1,32 @@
 package com.rustam.dev.leetcode.p205;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class Solution {
+
+    private boolean contains(char[] arr, char f) {
+        for (char c : arr) {
+            if (c == f) return true;
+        }
+        return false;
+    }
+
     public boolean isIsomorphic(String s, String t) {
 
-        Map<Character, Character> map = new HashMap<>();
+        char[] map = new char[256];
 
         for (int i = 0; i < s.length(); i++) {
 
             char key = s.charAt(i);
             char value = t.charAt(i);
 
-            Character c = map.get(key);
+            char c = map[key];
 
-            if (c == null) {
-                if (map.containsValue(value)) {
+            if (c == '\u0000') {
+                if (contains(map, value)) {
                     return false;
                 }
-                map.put(key, value);
+                map[key] = value;
             } else {
-                if (c.compareTo(value) != 0) {
+                if (c != value) {
                     return false;
                 }
             }
