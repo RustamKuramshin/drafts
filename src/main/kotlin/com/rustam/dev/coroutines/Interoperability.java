@@ -18,6 +18,6 @@ public class Interoperability {
             }
         };
 
-        var res = Coroutines3Kt.suspendFunction(continuation);
+        var res = Coroutines3Kt.helloWorld(continuation);
     }
 }

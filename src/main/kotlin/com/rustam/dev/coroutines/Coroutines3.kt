@@ -1,22 +1,12 @@
 package com.rustam.dev.coroutines
 
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.CoroutineContext
-
 suspend fun main() {
-    println(suspendFunction())
+    println(helloWorld())
 }
 
-suspend fun suspendFunction(): String {
-    return processMsg("test_value")
-}
+suspend fun helloWorld(): String =
+    "Hello ${world()}"
 
-suspend fun processMsg(msg: String): String {
-    return msg
-}
 
-interface ContinuationInterceptor : CoroutineContext.Element {
-    companion object Key : CoroutineContext.Key<ContinuationInterceptor>
-    fun <T> interceptContinuation(continuation: Continuation<T>): Continuation<T>
-    fun releaseInterceptedContinuation(continuation: Continuation<*>)
-}
+suspend fun world(): String =
+    "World"
