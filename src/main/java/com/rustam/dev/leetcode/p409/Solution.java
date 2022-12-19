@@ -9,7 +9,7 @@ class Solution {
         if (len == 1) return 1;
 
         byte[] charRegistry = new byte[58];
-        int result = 0;
+        short result = 0;
         byte singletonCount = 0;
 
         for (int i = 0; i < len; i++) {
@@ -24,14 +24,14 @@ class Solution {
                 charRegistry[sCharIdx] = newSCharCount;
                 singletonCount++;
             } else if (newSCharCount == 2) {
-                result = result + 2;
+                result = (short) (result + 2);
                 charRegistry[sCharIdx] = 0;
                 singletonCount--;
             }
         }
 
         if (singletonCount > 0) {
-            result = result + 1;
+            result = (short) (result + 1);
         }
 
         return result;
