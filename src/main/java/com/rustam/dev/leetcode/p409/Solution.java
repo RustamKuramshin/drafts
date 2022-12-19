@@ -7,9 +7,7 @@ class Solution {
         if (s.length() == 1) return 1;
 
         short[] charRegistry = new short[57];
-
         int result = 0;
-
         int singletonCount = 0;
 
         for (int i = 0; i < s.length(); i++) {
@@ -21,18 +19,13 @@ class Solution {
             short newSCharCount = (short) (sCharCount + 1);
 
             if (newSCharCount == 1) {
-
                 charRegistry[sCharIdx] = newSCharCount;
-
                 singletonCount++;
-
             } else if (newSCharCount == 2) {
-
                 result = result + 2;
                 charRegistry[sCharIdx] = 0;
                 singletonCount--;
             }
-
         }
 
         if (singletonCount > 0) {
@@ -48,6 +41,7 @@ class Solution {
 
         System.out.println(s.longestPalindrome("abccccdd")); // 7
         System.out.println(s.longestPalindrome("a")); // 1
+        System.out.println(s.longestPalindrome("Z")); // 1
         System.out.println(s.longestPalindrome("aaa")); // 3
         System.out.println(s.longestPalindrome("aaaa")); // 4
         System.out.println(s.longestPalindrome("aA")); // 1
