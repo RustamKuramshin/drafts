@@ -6,17 +6,17 @@ class Solution {
 
         if (s.length() == 1) return 1;
 
-        short[] charRegistry = new short[58];
+        byte[] charRegistry = new byte[58];
         int result = 0;
-        int singletonCount = 0;
+        byte singletonCount = 0;
 
         for (int i = 0; i < s.length(); i++) {
 
             byte sChar = (byte) s.charAt(i);
             byte sCharIdx = (byte) (sChar - 65);
 
-            short sCharCount = charRegistry[sCharIdx];
-            short newSCharCount = (short) (sCharCount + 1);
+            byte sCharCount = charRegistry[sCharIdx];
+            byte newSCharCount = (byte) (sCharCount + 1);
 
             if (newSCharCount == 1) {
                 charRegistry[sCharIdx] = newSCharCount;
