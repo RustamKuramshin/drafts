@@ -4,13 +4,15 @@ class Solution {
 
     public int longestPalindrome(String s) {
 
-        if (s.length() == 1) return 1;
+        short len = (short) s.length();
+
+        if (len == 1) return 1;
 
         byte[] charRegistry = new byte[58];
         int result = 0;
         byte singletonCount = 0;
 
-        for (int i = 0; i < s.length(); i++) {
+        for (int i = 0; i < len; i++) {
 
             byte sChar = (byte) s.charAt(i);
             byte sCharIdx = (byte) (sChar - 65);
