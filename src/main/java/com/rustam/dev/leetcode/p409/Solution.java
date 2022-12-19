@@ -6,7 +6,7 @@ class Solution {
 
         if (s.length() == 1) return 1;
 
-        short[] charRegistry = new short[57];
+        short[] charRegistry = new short[58];
         int result = 0;
         int singletonCount = 0;
 
