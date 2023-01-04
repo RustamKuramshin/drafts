@@ -4,6 +4,7 @@ public class Solution {
 
     public int findLengthOfLCIS(int[] nums) {
 
+        // Первый особый случай
         if (nums.length == 1) return 1;
 
         int l = 0, r = 0, max = 0;
@@ -13,13 +14,14 @@ public class Solution {
             if (nums[i] < nums[i + 1]) {
                 r++;
             } else {
-                max = Math.max(max, r - l);
+                if (max < r - l) max = r - l;
                 l = r = i + 1;
             }
         }
 
+        // Второй особый случай
         if (r == nums.length - 1 && nums[nums.length - 1] > nums[nums.length - 2]) {
-            max = Math.max(max, r - l);
+            if (max < r - l) max = r - l;
         }
 
         return max + 1;
