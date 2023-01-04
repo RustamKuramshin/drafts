@@ -4,14 +4,11 @@ public class Solution {
 
     public int findLengthOfLCIS(int[] nums) {
 
+        if (nums.length == 1) return 1;
+
         int l = 0, r = 0, max = 0;
 
-        for (int i = 0; i < nums.length; i++) {
-
-            if (i + 1 > nums.length - 1) {
-                max = Math.max(max, r - l);
-                break;
-            }
+        for (int i = 0; i < nums.length - 1; i++) {
 
             if (nums[i] < nums[i + 1]) {
                 r++;
@@ -19,6 +16,10 @@ public class Solution {
                 max = Math.max(max, r - l);
                 l = r = i + 1;
             }
+        }
+
+        if (r == nums.length - 1 && nums[nums.length - 1] > nums[nums.length - 2]) {
+            max = Math.max(max, r - l);
         }
 
         return max + 1;
@@ -34,6 +35,7 @@ public class Solution {
         System.out.println(s.findLengthOfLCIS(new int[]{2, 2, 2, 2, 2})); // 1
         System.out.println(s.findLengthOfLCIS(new int[]{2})); // 1
         System.out.println(s.findLengthOfLCIS(new int[]{2, 2})); // 1
+        System.out.println(s.findLengthOfLCIS(new int[]{1, 2})); // 2
         System.out.println(s.findLengthOfLCIS(new int[]{2, 2, 2, 2, 2, 1, 2, 3, 4})); // 4
         System.out.println(s.findLengthOfLCIS(new int[]{2, 2, 2, 2, 2, 1, 2, 3, 4, 0, 1, 2, 3, 4, 5})); // 6
         System.out.println(s.findLengthOfLCIS(new int[]{2, -9, -8, -7, -6, -5, -4, -3, 4, 0, 1, 2, 3, 4, 5})); // 8
