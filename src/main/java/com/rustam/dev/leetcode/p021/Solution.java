@@ -54,32 +54,52 @@ public class Solution {
         do {
 
             if (node1 == null) {
+//                ListNode tmp = node2.next;
+//                if (tmp != null) {
+//                    if (node2.val > tmp.val) {
+//
+//                    }
+//                }
+
                 break;
             }
 
             if (node1.val == node2.val) {
-                ListNode temp = node2.next;
+                ListNode tmp = node2.next;
                 node2.next = new ListNode(node1.val);
-                node2.next.next = temp;
+                node2.next.next = tmp;
+                node2 = node2.next;
+
+                node1 = node1.next;
                 node2 = node2.next;
             }
 
             if (node1.val < node2.val) {
-                int tempVal = node2.val;
-                ListNode temp = node2.next;
+                int tmpVal = node2.val;
+                ListNode tmp = node2.next;
                 node2.val = node1.val;
-                node2.next = new ListNode(tempVal);
-                node2.next.next = temp;
+                node2.next = new ListNode(tmpVal);
+                node2.next.next = tmp;
+
+                node1 = node1.next;
+                node2 = node2.next;
             }
 
             if (node1.val > node2.val) {
-                ListNode temp = node2.next;
-                node2.next = new ListNode(node1.val);
-                node2.next.next = temp;
-            }
+                if (node2.next != null) {
+                    if (node1.val > node2.next.val) {
+                        node2 = node2.next;
+                        continue;
+                    }
+                }
 
-            node1 = node1.next;
-            node2 = node2.next;
+                ListNode tmp = node2.next;
+                node2.next = new ListNode(node1.val);
+                node2.next.next = tmp;
+
+                node1 = node1.next;
+                node2 = node2.next;
+            }
 
         } while (node1 != null || node2 != null);
 
@@ -91,21 +111,21 @@ public class Solution {
 
         Solution s = new Solution();
 
-        ListNode ln1 = new ListNode(1);
-        ln1.next = new ListNode(2);
-        ln1.next.next = new  ListNode(4);
-
-        ListNode ln2 = new ListNode(1);
-        ln2.next = new ListNode(3);
-        ln2.next.next = new ListNode(4);
-
-        printListNode(s.mergeTwoLists(ln1, ln2)); // [1, 1, 2, 3, 4, 4]
-
-        printListNode(s.mergeTwoLists(null, null)); // null
-
-        ListNode ln6 = new ListNode(0);
-
-        printListNode(s.mergeTwoLists(null, ln6)); // [0]
+//        ListNode ln1 = new ListNode(1);
+//        ln1.next = new ListNode(2);
+//        ln1.next.next = new  ListNode(4);
+//
+//        ListNode ln2 = new ListNode(1);
+//        ln2.next = new ListNode(3);
+//        ln2.next.next = new ListNode(4);
+//
+//        printListNode(s.mergeTwoLists(ln1, ln2)); // [1, 1, 2, 3, 4, 4]
+//
+//        printListNode(s.mergeTwoLists(null, null)); // null
+//
+//        ListNode ln6 = new ListNode(0);
+//
+//        printListNode(s.mergeTwoLists(null, ln6)); // [0]
 
 
         ListNode ln7 = new ListNode(1);
@@ -143,6 +163,16 @@ public class Solution {
         ln16.next.next = new  ListNode(4);
 
         printListNode(s.mergeTwoLists(ln15, ln16)); // [1, 2, 4, 5]
+
+        ListNode ln17 = new ListNode(5);
+        ln17.next = new ListNode(6);
+
+        ListNode ln18 = new ListNode(1);
+        ln18.next = new ListNode(2);
+        ln18.next.next = new  ListNode(4);
+
+        printListNode(s.mergeTwoLists(ln17, ln18)); // [1, 2, 4, 5, 6]
+
     }
 }
 
