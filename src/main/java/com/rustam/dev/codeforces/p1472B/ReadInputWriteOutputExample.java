@@ -42,7 +42,7 @@ public class ReadInputWriteOutputExample {
     }
 
     public static void main(String[] args) throws IOException {
-        Problem1472B.Reader.init(System.in);
+        Reader.init(System.in);
         out = new PrintWriter(new BufferedOutputStream(System.out));
 
         // Далее идет ваш код
