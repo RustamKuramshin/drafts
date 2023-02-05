@@ -52,6 +52,9 @@ public class ReadInputWriteOutputExample {
         Reader.nextInt();
         Reader.nextDouble();
 
+        // Пишем в ответ
+        out.println("Test");
+
 
         // Отправить накопленный вывод на stdout
         out.close();
