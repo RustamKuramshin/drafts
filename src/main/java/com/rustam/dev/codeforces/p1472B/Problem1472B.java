@@ -3,6 +3,7 @@ package com.rustam.dev.codeforces.p1472B;
 import java.io.*;
 import java.util.StringTokenizer;
 
+// https://codeforces.com/problemset/problem/1472/B
 public class Problem1472B {
 
     public static PrintWriter out;

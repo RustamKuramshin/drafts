@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.StringTokenizer;
 
+// https://codeforces.com/contest/1788/problem/E
 public class Problem1788E {
 
     public static PrintWriter out;
