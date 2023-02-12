@@ -59,20 +59,29 @@ public class Problem1788E {
 
         int n = Reader.nextInt();
 
-        int[] arr = new int[n];
-        int arrSum = 0;
+        int x = 1;
+        int y = x;
+
+        int segmentSum = 0;
+        int totalLengthAllSegments = 0;
         boolean allNeg = true;
 
-        for (int i = 0; i < n; i++) {
-            int num = Reader.nextInt();
-            arr[i] = num;
-            arrSum += num;
-            if (num > 0) {
-                allNeg = false;
+        while (y <= n) {
+            int a = Reader.nextInt();
+
+            if (a > 0) allNeg = false;
+
+            segmentSum += a;
+
+            if (segmentSum < 0 && !allNeg) {
+                totalLengthAllSegments += (y - 1) - x + 1;
+                x = y;
             }
+
+            y++;
         }
 
-        out.println(getMaxSumSegmentLengths(arr, arrSum, allNeg));
+        out.println(totalLengthAllSegments);
 
         out.close();
     }
