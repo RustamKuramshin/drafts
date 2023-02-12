@@ -129,20 +129,20 @@ public class LRUCache {
 
     public static void main(String[] args) {
 
-//        LRUCache lRUCache1 = new LRUCache(2);
-//        lRUCache1.put(1, 1); // cache is {1=1}
-//        lRUCache1.put(2, 2); // cache is {1=1, 2=2}
-//        lRUCache1.get(1);    // return 1
-//        lRUCache1.put(3, 3); // LRU key was 2, evicts key 2, cache is {1=1, 3=3}
-//        lRUCache1.get(2);    // returns -1 (not found)
-//        lRUCache1.put(4, 4); // LRU key was 1, evicts key 1, cache is {4=4, 3=3}
-//        lRUCache1.get(1);    // return -1 (not found)
-//        lRUCache1.get(3);    // return 3
-//        lRUCache1.get(4);    // return 4
+        LRUCache lRUCache1 = new LRUCache(2);
+        lRUCache1.put(1, 1); // cache is {1=1}
+        lRUCache1.put(2, 2); // cache is {1=1, 2=2}
+        lRUCache1.get(1);    // return 1
+        lRUCache1.put(3, 3); // LRU key was 2, evicts key 2, cache is {1=1, 3=3}
+        lRUCache1.get(2);    // returns -1 (not found)
+        lRUCache1.put(4, 4); // LRU key was 1, evicts key 1, cache is {4=4, 3=3}
+        lRUCache1.get(1);    // return -1 (not found)
+        lRUCache1.get(3);    // return 3
+        lRUCache1.get(4);    // return 4
 
-//        LRUCache lRUCache2 = new LRUCache(1);
-//        lRUCache2.put(2, 1);
-//        lRUCache2.get(2);
+        LRUCache lRUCache2 = new LRUCache(1);
+        lRUCache2.put(2, 1);
+        lRUCache2.get(2);
 
         LRUCache lruCache3 = new LRUCache(2);
 
@@ -153,8 +153,6 @@ public class LRUCache {
 
         lruCache3.get(1);
         lruCache3.get(2);
-
-
     }
 
     private static void printFromNode(Node fromNode) {
