@@ -9,6 +9,13 @@ public class LRUCache {
     private int size;
     private int capacity;
 
+    private boolean debug = true;
+    private void logDebug(String msg, Object... o) {
+        if (debug) {
+            System.out.printf(msg, o);
+        }
+    }
+
     private static class Node {
 
         int key;
@@ -78,14 +85,20 @@ public class LRUCache {
         Node node = this.table[key];
 
         if (node != null) {
-            removeNode(node);
-            appendNodeToEnd(node);
+            if (!(node.prev == null && node.next == null)) {
+                removeNode(node);
+                appendNodeToEnd(node);
+            }
         }
 
-        return node == null ? -1 : node.val;
+        int res = node == null ? -1 : node.val;
+        logDebug("get(key=%s) => %s\n", key, res);
+        this.printCache();
+        return res;
     }
 
     public void put(int key, int value) {
+        logDebug("put(key=%s, value=%s)\n", key, value);
 
         Node newNode = new Node(key, value);
 
@@ -100,41 +113,34 @@ public class LRUCache {
             ++this.size;
             if (this.size > this.capacity) {
                 Node h = popHead();
-                System.out.printf("pop %s\n", h.val);
+                logDebug("pop %s\n", h.val);
                 --this.size;
                 this.table[h.key] = null;
             }
         }
 
+        this.printCache();
         this.table[key] = newNode;
     }
 
     public static void main(String[] args) {
 
-        LRUCache lRUCache = new LRUCache(2);
-        System.out.println("put()");
-        lRUCache.put(1, 1); // cache is {1=1}
-        System.out.println("put()");
-        lRUCache.put(2, 2); // cache is {1=1, 2=2}
-        System.out.println("get()");
-        System.out.println(lRUCache.get(1));    // return 1
-        lRUCache.printCache();
-        System.out.println("put()");
-        lRUCache.put(3, 3); // LRU key was 2, evicts key 2, cache is {1=1, 3=3}
-        System.out.println("get()");
-        System.out.println(lRUCache.get(2));    // returns -1 (not found)
-        lRUCache.printCache();
-        System.out.println("put()");
-        lRUCache.put(4, 4); // LRU key was 1, evicts key 1, cache is {4=4, 3=3}
-        System.out.println("get()");
-        System.out.println(lRUCache.get(1));    // return -1 (not found)
-        lRUCache.printCache();
-        System.out.println("get()");
-        System.out.println(lRUCache.get(3));    // return 3
-        lRUCache.printCache();
-        System.out.println("get()");
-        System.out.println(lRUCache.get(4));    // return 4
-        lRUCache.printCache();
+//        LRUCache lRUCache1 = new LRUCache(2);
+//        lRUCache1.put(1, 1); // cache is {1=1}
+//        lRUCache1.put(2, 2); // cache is {1=1, 2=2}
+//        lRUCache1.get(1);    // return 1
+//        lRUCache1.put(3, 3); // LRU key was 2, evicts key 2, cache is {1=1, 3=3}
+//        lRUCache1.get(2);    // returns -1 (not found)
+//        lRUCache1.put(4, 4); // LRU key was 1, evicts key 1, cache is {4=4, 3=3}
+//        lRUCache1.get(1);    // return -1 (not found)
+//        lRUCache1.get(3);    // return 3
+//        lRUCache1.get(4);    // return 4
+
+        LRUCache lRUCache2 = new LRUCache(1);
+        lRUCache2.put(2, 1);
+        lRUCache2.get(2);
+
+
     }
 
     private static void printFromNode(Node fromNode) {
@@ -159,7 +165,7 @@ public class LRUCache {
         System.out.println(res);
     }
 
-    public void printCache() {
+    private void printCache() {
         System.out.print("cache: ");
         printFromNode(this.head);
     }
