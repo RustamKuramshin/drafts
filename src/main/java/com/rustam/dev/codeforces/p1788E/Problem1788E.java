@@ -85,26 +85,4 @@ public class Problem1788E {
 
         out.close();
     }
-
-    private  static int getMaxSumSegmentLengths(int[] arr, int arrSum, boolean allNeg) {
-
-        if (allNeg) return 0;
-
-        int sum = 0;
-        int sumLen = 0;
-        int start = 1;
-
-        for (int end = start + 1; end <= arr.length;) {
-
-            sum += arr[start] + arr[end - 1];
-
-            if (sum < 0) {
-                sumLen += (end - 1) - start + 1;
-                start = end;
-                end = end + 1;
-            }
-        }
-
-        return sumLen;
-    }
 }
