@@ -2,56 +2,30 @@ package com.rustam.dev.leetcode.p146;
 
 public class LRUCache {
 
+    private Node[] table;
     private Node head;
     private Node last;
 
     private int size;
-
-    private static void printFromNode(Node fromNode) {
-
-        if (fromNode == null) {
-            System.out.println("[]");
-            return;
-        }
-
-        StringBuilder res = new StringBuilder();
-        res.append("[");
-
-        Node node = fromNode;
-        do {
-            res.append(node.val);
-            node = node.next;
-            if (node != null) res.append(", ");
-        } while (node != null);
-
-        res.append("]");
-
-        System.out.println(res);
-    }
-
-    public void printCache() {
-        System.out.print("cache: ");
-        printFromNode(this.head);
-    }
+    private int capacity;
 
     private static class Node {
 
+        int key;
         int val;
+
         Node prev;
         Node next;
 
-        Node() {
-
+        Node(int val) {
+            this.val = val;
         }
 
-        Node(int x) {
-            this.val = x;
+        Node(int key, int val) {
+            this.key = key;
+            this.val = val;
         }
     }
-
-    private Node[] table;
-
-    private int capacity;
 
     private void appendNodeToEnd(Node node) {
         node.prev = this.last;
@@ -86,6 +60,14 @@ public class LRUCache {
         node.next = null;
     }
 
+    private Node popHead() {
+        Node node = this.head;
+        Node nextNode = this.head.next;
+        this.head = nextNode;
+        this.head.prev = null;
+        return node;
+    }
+
     public LRUCache(int capacity) {
         this.capacity = capacity;
         this.size = 0;
@@ -105,7 +87,7 @@ public class LRUCache {
 
     public void put(int key, int value) {
 
-        Node newNode = new Node(value);
+        Node newNode = new Node(key, value);
 
         if (this.head == null) {
             this.head = newNode;
@@ -114,21 +96,35 @@ public class LRUCache {
             appendNodeToEnd(newNode);
         }
 
+        if (this.table[key] == null) {
+            ++this.size;
+            if (this.size > this.capacity) {
+                Node h = popHead();
+                System.out.printf("pop %s\n", h.val);
+                --this.size;
+                this.table[h.key] = null;
+            }
+        }
+
         this.table[key] = newNode;
     }
 
     public static void main(String[] args) {
 
         LRUCache lRUCache = new LRUCache(2);
+        System.out.println("put()");
         lRUCache.put(1, 1); // cache is {1=1}
+        System.out.println("put()");
         lRUCache.put(2, 2); // cache is {1=1, 2=2}
         System.out.println("get()");
         System.out.println(lRUCache.get(1));    // return 1
         lRUCache.printCache();
+        System.out.println("put()");
         lRUCache.put(3, 3); // LRU key was 2, evicts key 2, cache is {1=1, 3=3}
         System.out.println("get()");
         System.out.println(lRUCache.get(2));    // returns -1 (not found)
         lRUCache.printCache();
+        System.out.println("put()");
         lRUCache.put(4, 4); // LRU key was 1, evicts key 1, cache is {4=4, 3=3}
         System.out.println("get()");
         System.out.println(lRUCache.get(1));    // return -1 (not found)
@@ -139,5 +135,32 @@ public class LRUCache {
         System.out.println("get()");
         System.out.println(lRUCache.get(4));    // return 4
         lRUCache.printCache();
+    }
+
+    private static void printFromNode(Node fromNode) {
+
+        if (fromNode == null) {
+            System.out.println("[]");
+            return;
+        }
+
+        StringBuilder res = new StringBuilder();
+        res.append("[");
+
+        Node node = fromNode;
+        do {
+            res.append(node.val);
+            node = node.next;
+            if (node != null) res.append(", ");
+        } while (node != null);
+
+        res.append("]");
+
+        System.out.println(res);
+    }
+
+    public void printCache() {
+        System.out.print("cache: ");
+        printFromNode(this.head);
     }
 }
