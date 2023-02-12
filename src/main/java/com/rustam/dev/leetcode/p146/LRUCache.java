@@ -109,7 +109,9 @@ public class LRUCache {
             appendNodeToEnd(newNode);
         }
 
-        if (this.table[key] == null) {
+        Node oldNode = this.table[key];
+
+        if (oldNode == null) {
             ++this.size;
             if (this.size > this.capacity) {
                 Node h = popHead();
@@ -117,6 +119,8 @@ public class LRUCache {
                 --this.size;
                 this.table[h.key] = null;
             }
+        } else {
+            removeNode(oldNode);
         }
 
         this.printCache();
@@ -136,9 +140,19 @@ public class LRUCache {
 //        lRUCache1.get(3);    // return 3
 //        lRUCache1.get(4);    // return 4
 
-        LRUCache lRUCache2 = new LRUCache(1);
-        lRUCache2.put(2, 1);
-        lRUCache2.get(2);
+//        LRUCache lRUCache2 = new LRUCache(1);
+//        lRUCache2.put(2, 1);
+//        lRUCache2.get(2);
+
+        LRUCache lruCache3 = new LRUCache(2);
+
+        lruCache3.put(2, 1);
+        lruCache3.put(1, 1);
+        lruCache3.put(2, 3);
+        lruCache3.put(4, 1);
+
+        lruCache3.get(1);
+        lruCache3.get(2);
 
 
     }
