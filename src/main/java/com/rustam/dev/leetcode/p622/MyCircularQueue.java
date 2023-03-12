@@ -69,7 +69,6 @@ public class MyCircularQueue {
 
         if (isEmpty()) return false;
 
-        front.val = - 1;
         front = front.next;
         --enQueuedCount;
 
