@@ -16,6 +16,8 @@ public class MyCircularQueue implements IMyCircularQueue {
     private int front = 0;
     private int rear = -1;
 
+    private int enQueuedCount = 0;
+
     // Инициализирует объект размером очереди k
     public MyCircularQueue(int k) {
         this.queue = new int[k];
@@ -27,9 +29,10 @@ public class MyCircularQueue implements IMyCircularQueue {
 
         if (isFull()) return false;
 
-        if (rear == queue.length - 1) rear = 0;
+        if (rear == queue.length - 1) rear = -1;
 
         queue[++rear] = value;
+        ++enQueuedCount;
 
         return true;
     }
@@ -40,8 +43,9 @@ public class MyCircularQueue implements IMyCircularQueue {
         if (isEmpty()) return false;
 
         queue[front++] = -1;
+        --enQueuedCount;
 
-        if (front == queue.length) {
+        if (isEmpty()) {
             front = 0;
             rear = -1;
         }
@@ -63,13 +67,11 @@ public class MyCircularQueue implements IMyCircularQueue {
 
     // Проверяет, пуста ли круговая очередь
     public boolean isEmpty() {
-        if (front > rear) return true;
-        return (front == rear) && queue[front] == -1;
+        return enQueuedCount == 0;
     }
 
     // Проверяет, заполнена ли круговая очередь
     public boolean isFull() {
-        if (rear == -1) return false;
-        return (Math.abs(rear - front) + 1) == queue.length;
+        return enQueuedCount == queue.length;
     }
 }
