@@ -79,7 +79,7 @@ public class MyCircularQueue {
     // Получает первый элемент из очереди. Если очередь пуста, вернуть -1
     public int Front() {
         if (isEmpty()) return -1;
-        return  front.val;
+        return front.val;
     }
 
     // Получает последний элемент из очереди. Если очередь пуста, вернуть -1
