@@ -35,21 +35,17 @@ public class MyCircularQueue implements IMyCircularQueue {
 
         if (isFull()) return false;
 
+        Node newNode = new Node(value);
+
         if (isEmpty()) {
-            Node newNode = new Node(value);
             front = newNode;
             rear = newNode;
         } else {
-            Node newNode = new Node(value);
             rear.next = newNode;
             rear = rear.next;
         }
 
         ++enQueuedCount;
-
-        if (rear.next == null && isFull()) {
-            rear.next = front;
-        }
 
         return true;
     }

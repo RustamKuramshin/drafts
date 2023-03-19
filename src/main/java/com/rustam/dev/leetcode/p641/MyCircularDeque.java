@@ -31,23 +31,39 @@ public class MyCircularDeque {
 
         if (isFull()) return false;
 
+        Node newNode = new Node(value);
+
         if (isEmpty()) {
-            Node newNode = new Node(value);
             front = newNode;
             rear = newNode;
         } else {
-            Node newNode = new Node(value);
             rear.next = newNode;
             rear = rear.next;
         }
 
         ++enQueuedCount;
 
-        if (rear.next == null && isFull()) {
-            rear.next = front;
+        return true;
+    }
+
+    public boolean insertFront(int value) {
+
+        if (isFull()) return false;
+
+        Node newNode = new Node(value);
+
+        if (isEmpty()) {
+            front = newNode;
+            rear = newNode;
+        } else {
+            newNode.next = front;
+            front = newNode;
         }
 
-        return true;
+        ++enQueuedCount;
+
+
+
     }
 
     public boolean deleteFront() {
