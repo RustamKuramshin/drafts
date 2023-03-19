@@ -2,9 +2,11 @@ package com.rustam.dev.leetcode.p622;
 
 import com.rustam.dev.leetcode.p622.array.MyCircularQueue;
 import org.junit.Test;
+import org.junit.jupiter.api.DisplayName;
 
 import static org.junit.Assert.*;
 
+@DisplayName("Тестирования круговой очереди")
 public class MyCircularQueueTest {
 
     private enum QueueType {

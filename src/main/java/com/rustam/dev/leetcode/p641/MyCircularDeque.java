@@ -1,5 +1,8 @@
 package com.rustam.dev.leetcode.p641;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MyCircularDeque {
     
     private int enQueuedCount = 0;
@@ -38,6 +41,7 @@ public class MyCircularDeque {
             rear = newNode;
         } else {
             rear.next = newNode;
+            newNode.prev = rear;
             rear = rear.next;
         }
 
@@ -57,13 +61,26 @@ public class MyCircularDeque {
             rear = newNode;
         } else {
             newNode.next = front;
+            front.prev = newNode;
             front = newNode;
         }
 
         ++enQueuedCount;
 
+        return true;
+    }
 
+    public boolean deleteLast() {
 
+        if (isEmpty()) return false;
+
+        rear = rear.prev;
+        if (rear != null) {
+            rear.next = null;
+        }
+        --enQueuedCount;
+
+        return true;
     }
 
     public boolean deleteFront() {
@@ -71,6 +88,9 @@ public class MyCircularDeque {
         if (isEmpty()) return false;
 
         front = front.next;
+        if (front != null) {
+            front.prev = null;
+        }
         --enQueuedCount;
 
         return true;
@@ -92,5 +112,22 @@ public class MyCircularDeque {
 
     public boolean isFull() {
         return enQueuedCount == maxQueueSize;
+    }
+
+    public static void main(String[] args) {
+
+    }
+
+    public List<Integer> toList() {
+
+        List<Integer> integerList = new ArrayList<>();
+
+        Node node = front;
+        while (node != null) {
+            integerList.add(node.val);
+            node = node.next;
+        }
+
+        return integerList;
     }
 }
