@@ -6,7 +6,6 @@ public class MyCircularQueue implements IMyCircularQueue {
 
     private int enQueuedCount = 0;
     private int maxQueueSize = 0;
-    private boolean isClosed = false;
 
     private Node front;
     private Node rear;
@@ -36,24 +35,20 @@ public class MyCircularQueue implements IMyCircularQueue {
 
         if (isFull()) return false;
 
-        if (isEmpty() && !isClosed) {
+        if (isEmpty()) {
             Node newNode = new Node(value);
             front = newNode;
             rear = newNode;
-        } else if (!isClosed) {
+        } else {
             Node newNode = new Node(value);
             rear.next = newNode;
             rear = rear.next;
-        } else {
-            rear = rear.next;
-            rear.val = value;
         }
 
         ++enQueuedCount;
 
         if (rear.next == null && isFull()) {
             rear.next = front;
-            isClosed = true;
         }
 
         return true;
@@ -91,5 +86,4 @@ public class MyCircularQueue implements IMyCircularQueue {
     public boolean isFull() {
         return enQueuedCount == maxQueueSize;
     }
-
 }
