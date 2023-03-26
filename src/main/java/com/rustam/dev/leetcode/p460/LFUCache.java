@@ -33,6 +33,12 @@ public class LFUCache {
 
     private void removeNodeFromQueue(Node node) {
 
+        if (this.front == node && this.rear == node) {
+            front = null;
+            rear = null;
+            return;
+        }
+
         Node prevNode = node.prev;
         Node nextNode = node.next;
 
@@ -133,10 +139,6 @@ public class LFUCache {
         if (minNodes.size() == 1) {
             deletedNode = minNodes.get(0);
         } else if (minNodes.size() > 1) {
-//            Optional<Node> opn = minNodes.stream().filter(n -> Objects.isNull(n.next)).findFirst();
-//            if (opn.isPresent()) {
-//                deletedNode = opn.get();
-//            }
             for (Node mn : minNodes) {
                 if (mn.next == null) {
                     deletedNode = mn;

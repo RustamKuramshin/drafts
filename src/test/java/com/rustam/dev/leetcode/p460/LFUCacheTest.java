@@ -35,7 +35,7 @@ public class LFUCacheTest {
         assertEquals(2, lfu.cnt(1)); // cnt(1)=2
         assertEquals(-1, lfu.get(2));      // return -1 (not found)
         assertEquals(3, lfu.get(3));       // return 3
-        assertArrayEquals(List.of(3, 1).toArray(), lfu.toList().toArray());// cache=[3,1]
+        assertArrayEquals(List.of(3, 1).toArray(), lfu.toList().toArray()); // cache=[3,1]
         assertEquals(2, lfu.cnt(3)); // cnt(3)=2
         assertEquals(2, lfu.cnt(1)); // cnt(1)=2
         lfu.put(4, 4);   // Both 1 and 3 have the same cnt, but 1 is LRU, invalidate 1.
@@ -65,5 +65,31 @@ public class LFUCacheTest {
         lfu.put(4, 4);
         lfu.get(2);
 
+    }
+
+    @Test
+    @DisplayName("test case 8")
+    public void test_case_8() {
+
+        LFUCache lfu = new LFUCache(1);
+
+        lfu.put(2 ,1);
+        lfu.get(2);
+        lfu.put(3, 2);
+        lfu.get(2);
+        lfu.get(3);
+    }
+
+    @Test
+    @DisplayName("test case 14")
+    public void test_case_14() {
+
+        LFUCache lfu = new LFUCache(1);
+
+        lfu.put(2, 1);
+        assertEquals(1 ,lfu.get(2));
+        lfu.put(3, 2);
+        assertEquals(-1, lfu.get(2));
+        assertEquals(2, lfu.get(3));
     }
 }
