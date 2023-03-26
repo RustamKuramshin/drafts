@@ -139,14 +139,21 @@ public class LFUCache {
         if (minNodes.size() == 1) {
             deletedNode = minNodes.get(0);
         } else if (minNodes.size() > 1) {
-            for (Node mn : minNodes) {
-                if (mn.next == null) {
-                    deletedNode = mn;
-                }
-            }
+            deletedNode = minNodes.get(minNodes.size() -1);
         }
 
-        if (deletedNode == null) throw new RuntimeException("deletedNode is null");
+//        for (Node mn : minNodes) {
+//            System.out.println(mn);
+//            System.out.println(mn.key);
+//            System.out.println(mn.val);
+//            System.out.println(mn.useCounter);
+//            System.out.println(mn.next);
+//        }
+
+//        if (deletedNode == null) {
+//            System.out.println(this.toListV2());
+//            throw new RuntimeException("deletedNode is null");
+//        }
 
         removeNodeFromQueue(deletedNode);
         cache[deletedNode.key] = null;
@@ -166,7 +173,6 @@ public class LFUCache {
         if (node != null) {
             if (!(node.prev == null && node.next == null)) {
                 moveToFront(node);
-
             }
             ++node.useCounter;
         }
@@ -215,5 +221,22 @@ public class LFUCache {
 
     public int cnt(int key) {
         return cache[key].useCounter;
+    }
+
+    public String nodeToString(Node node) {
+        return String.format("[key=%s,val=%s, uc=%s]", node.key, node.val, node.useCounter);
+    }
+
+    public List<String> toListV2() {
+
+        List<String> integerList = new ArrayList<>();
+
+        Node node = front;
+        while (node != null) {
+            integerList.add(nodeToString(node));
+            node = node.next;
+        }
+
+        return integerList;
     }
 }
