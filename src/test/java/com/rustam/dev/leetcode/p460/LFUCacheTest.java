@@ -91,6 +91,7 @@ public class LFUCacheTest {
         assertEquals(-1, lfu.get(2));
         assertEquals(2, lfu.get(3));
     }
+
     @Test
     @DisplayName("test case 15")
     public void test_case_15() {
