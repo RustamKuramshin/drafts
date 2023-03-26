@@ -188,7 +188,10 @@ public class LFUCache {
         }
 
         putNodeInCache(newNode);
-        ++currentSize;
+        if (currentNode == null) {
+            ++currentSize;
+        }
+
     }
 
     public static void main(String[] args) {
