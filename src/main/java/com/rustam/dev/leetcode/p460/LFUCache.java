@@ -2,8 +2,6 @@ package com.rustam.dev.leetcode.p460;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 
 public class LFUCache {
 
@@ -135,9 +133,14 @@ public class LFUCache {
         if (minNodes.size() == 1) {
             deletedNode = minNodes.get(0);
         } else if (minNodes.size() > 1) {
-            Optional<Node> opn = minNodes.stream().filter(n -> Objects.isNull(n.next)).findFirst();
-            if (opn.isPresent()) {
-                deletedNode = opn.get();
+//            Optional<Node> opn = minNodes.stream().filter(n -> Objects.isNull(n.next)).findFirst();
+//            if (opn.isPresent()) {
+//                deletedNode = opn.get();
+//            }
+            for (Node mn : minNodes) {
+                if (mn.next == null) {
+                    deletedNode = mn;
+                }
             }
         }
 
