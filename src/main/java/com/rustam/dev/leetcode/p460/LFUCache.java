@@ -146,6 +146,8 @@ public class LFUCache {
             }
         }
 
+        if (deletedNode == null) throw new RuntimeException("deletedNode is null");
+
         removeNodeFromQueue(deletedNode);
         cache[deletedNode.key] = null;
 
