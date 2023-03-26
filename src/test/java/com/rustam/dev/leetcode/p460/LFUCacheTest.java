@@ -63,8 +63,7 @@ public class LFUCacheTest {
         lfu.put(2, 1);
         lfu.put(2, 2);
         lfu.put(4, 4);
-        lfu.get(2);
-
+        assertEquals(2, lfu.get(2));
     }
 
     @Test
@@ -74,10 +73,10 @@ public class LFUCacheTest {
         LFUCache lfu = new LFUCache(1);
 
         lfu.put(2 ,1);
-        lfu.get(2);
+        assertEquals(1, lfu.get(2));
         lfu.put(3, 2);
-        lfu.get(2);
-        lfu.get(3);
+        assertEquals(-1, lfu.get(2));
+        assertEquals(2, lfu.get(3));
     }
 
     @Test
@@ -92,4 +91,18 @@ public class LFUCacheTest {
         assertEquals(-1, lfu.get(2));
         assertEquals(2, lfu.get(3));
     }
+    @Test
+    @DisplayName("test case 15")
+    public void test_case_15() {
+
+        LFUCache lfu = new LFUCache(2);
+
+        lfu.put(2, 1);
+        lfu.put(2, 2);
+        assertEquals(2, lfu.get(2));
+        lfu.put(1, 1);
+        lfu.put(4, 1);
+        assertEquals(2, lfu.get(2));
+    }
+
 }
