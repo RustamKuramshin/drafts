@@ -134,26 +134,8 @@ public class LFUCache {
 
     private Node invalidate() {
         List<Node> minNodes = getNodesWithMinUseCounter();
-        Node deletedNode = null;
 
-        if (minNodes.size() == 1) {
-            deletedNode = minNodes.get(0);
-        } else if (minNodes.size() > 1) {
-            deletedNode = minNodes.get(minNodes.size() -1);
-        }
-
-//        for (Node mn : minNodes) {
-//            System.out.println(mn);
-//            System.out.println(mn.key);
-//            System.out.println(mn.val);
-//            System.out.println(mn.useCounter);
-//            System.out.println(mn.next);
-//        }
-
-//        if (deletedNode == null) {
-//            System.out.println(this.toListV2());
-//            throw new RuntimeException("deletedNode is null");
-//        }
+        Node deletedNode = minNodes.get(minNodes.size() - 1);
 
         removeNodeFromQueue(deletedNode);
         cache[deletedNode.key] = null;
