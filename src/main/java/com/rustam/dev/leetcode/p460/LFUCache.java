@@ -176,9 +176,13 @@ public class LFUCache {
 
         Node newNode = new Node(key, value);
 
-        if (currentSize == capacity) {
-            invalidate();
-            --currentSize;
+        Node currentNode = cache[key];
+
+        if (currentNode == null) {
+            if (currentSize == capacity) {
+                invalidate();
+                --currentSize;
+            }
         }
 
         putNodeInCache(newNode);

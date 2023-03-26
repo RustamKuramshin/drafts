@@ -52,4 +52,18 @@ public class LFUCacheTest {
         assertEquals(2, lfu.cnt(4));// cnt(4)=2
         assertEquals(3, lfu.cnt(3));// cnt(3)=3
     }
+
+    @Test
+    @DisplayName("test case 3")
+    public void test_case_3() {
+
+        LFUCache lfu = new LFUCache(2);
+
+        lfu.put(3, 1);
+        lfu.put(2, 1);
+        lfu.put(2, 2);
+        lfu.put(4, 4);
+        lfu.get(2);
+
+    }
 }
