@@ -1,6 +1,5 @@
-package com.rustam.dev.leetcode.p622;
+package com.rustam.dev.leetcode.p641;
 
-import com.rustam.dev.leetcode.p641.MyCircularDeque;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 

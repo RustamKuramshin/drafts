@@ -69,8 +69,7 @@ public class LRUCache {
 
     private Node popHead() {
         Node node = this.head;
-        Node nextNode = this.head.next;
-        this.head = nextNode;
+        this.head = this.head.next;
         this.head.prev = null;
         return node;
     }
