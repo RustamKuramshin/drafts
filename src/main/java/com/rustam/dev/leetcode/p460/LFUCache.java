@@ -3,6 +3,7 @@ package com.rustam.dev.leetcode.p460;
 import java.util.ArrayList;
 import java.util.List;
 
+// https://leetcode.com/problems/lfu-cache/
 public class LFUCache {
 
     private Node[] cache;
