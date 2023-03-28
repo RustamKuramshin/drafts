@@ -5,7 +5,8 @@ import org.junit.jupiter.api.DisplayName;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @DisplayName("Тестирование LFU-кэша")
 public class LFUCacheTest {
@@ -60,10 +61,15 @@ public class LFUCacheTest {
         LFUCache lfu = new LFUCache(2);
 
         lfu.put(3, 1);
+        assertArrayEquals(List.of(1).toArray(), lfu.toList().toArray());
         lfu.put(2, 1);
+        assertArrayEquals(List.of(1, 1).toArray(), lfu.toList().toArray());
         lfu.put(2, 2);
+        assertArrayEquals(List.of(2, 1).toArray(), lfu.toList().toArray());
         lfu.put(4, 4);
+        assertArrayEquals(List.of(4, 2).toArray(), lfu.toList().toArray());
         assertEquals(2, lfu.get(2));
+        assertArrayEquals(List.of(2, 4).toArray(), lfu.toList().toArray());
     }
 
     @Test
@@ -72,7 +78,7 @@ public class LFUCacheTest {
 
         LFUCache lfu = new LFUCache(1);
 
-        lfu.put(2 ,1);
+        lfu.put(2, 1);
         assertEquals(1, lfu.get(2));
         lfu.put(3, 2);
         assertEquals(-1, lfu.get(2));
@@ -86,7 +92,7 @@ public class LFUCacheTest {
         LFUCache lfu = new LFUCache(1);
 
         lfu.put(2, 1);
-        assertEquals(1 ,lfu.get(2));
+        assertEquals(1, lfu.get(2));
         lfu.put(3, 2);
         assertEquals(-1, lfu.get(2));
         assertEquals(2, lfu.get(3));
@@ -110,5 +116,6 @@ public class LFUCacheTest {
     @DisplayName("test case 17")
     public void test_case_17() {
 
+        LFUCacheTestCasePlayer.playTestCase("test-cases-data/p460/17/methods.txt", "test-cases-data/p460/17/data.txt");
     }
 }
