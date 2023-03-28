@@ -16,8 +16,6 @@ public class LFUCache {
     private int capacity;
     private int currentSize;
 
-    private Map<Integer, Map<Integer, Node>> nodeUseRegistry;
-
     private static class Node {
 
         int key;
@@ -36,46 +34,12 @@ public class LFUCache {
 
     private Node newNode(int key, int value) {
 
-        Node newNode = new Node(key, value);
-
-        Map<Integer, Node> nodeMap = nodeUseRegistry.get(newNode.useCounter);
-
-        if (nodeMap == null) {
-            Map<Integer, Node> newNodeMap = new LinkedHashMap<>();
-            newNodeMap.put(newNode.key, newNode);
-            nodeUseRegistry.put(newNode.useCounter, newNodeMap);
-        } else {
-            nodeMap.put(newNode.key, newNode);
-        }
-
-        return newNode;
+        return new Node(key, value);
     }
 
     private void incNodeUseCounter(Node node) {
 
-        int ucCurValue = node.useCounter;
-        int ucNewValue = ucCurValue + 1;
-
-        Map<Integer, Node> curNodeMap = nodeUseRegistry.get(ucCurValue);
-
-        if (curNodeMap != null) {
-            curNodeMap.remove(node.key);
-            if (curNodeMap.size() == 0) {
-                nodeUseRegistry.remove(ucCurValue);
-            }
-        }
-
-        Map<Integer, Node> newNodeMap = nodeUseRegistry.get(ucNewValue);
-
-        if (newNodeMap == null) {
-            Map<Integer, Node> nodeMap = new LinkedHashMap<>();
-            nodeMap.put(node.key, node);
-            nodeUseRegistry.put(ucNewValue, nodeMap);
-        } else {
-            newNodeMap.put(node.key, node);
-        }
-
-        node.useCounter = ucNewValue;
+        node.useCounter = node.useCounter + 1;
     }
 
     private void removeNodeFromQueue(Node node) {
@@ -142,45 +106,13 @@ public class LFUCache {
 
     private Node getNodeForDelete() {
 
-        Map.Entry<Integer, Map<Integer, Node>> minMapEntry =
-                ((TreeMap<Integer, Map<Integer, Node>>) nodeUseRegistry).firstEntry();
-
-        LinkedHashMap<Integer, Node> mm = (LinkedHashMap<Integer, Node>) minMapEntry.getValue();
-
-        int minPriority = 0;
-        Node minNode = null;
-
-        int i = 0;
-        for (Map.Entry<Integer, Node> entry : mm.entrySet()) {
-
-            Node curNode = entry.getValue();
-            if (i == 0) {
-                minPriority = curNode.priority;
-                minNode = curNode;
-            }
-
-            if (curNode.priority < minPriority) {
-                minPriority = curNode.priority;
-                minNode = curNode;
-            }
-
-            i++;
-        }
-
-        mm.remove(minNode.key);
-
-        if (mm.size() == 0) {
-            nodeUseRegistry.remove(minMapEntry.getKey());
-        }
-
-        return minNode;
+        return null;
     }
 
     private Node invalidate() {
 
         Node nodeForDelete = getNodeForDelete();
 
-        removeNodeFromQueue(nodeForDelete);
         cache[nodeForDelete.key] = null;
 
         return nodeForDelete;
@@ -190,7 +122,6 @@ public class LFUCache {
         cache = new Node[100000];
         this.capacity = capacity;
         currentSize = 0;
-        nodeUseRegistry = new TreeMap<>();
     }
 
     public int get(int key) {
