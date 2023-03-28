@@ -136,8 +136,6 @@ public class LFUCache {
         if (node.key != front.key) {
             removeNodeFromQueue(node);
             insertFront(node);
-        } else {
-
         }
 
     }
@@ -242,7 +240,7 @@ public class LFUCache {
     }
 
     public static void main(String[] args) {
-
+        // Ниже идут методы не участвующие в решение на leetcode
     }
 
     private void throwCacheInconsistentException(String cause, String action) {
