@@ -1,27 +1,77 @@
 package com.rustam.dev.leetcode.p460;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
 // https://leetcode.com/problems/lfu-cache/
 public class LFUCache {
 
-    private Node[] cache;
-    private Node front;
-    private Node rear;
+    private CacheStore cacheStore;
+    private Queue queue;
 
     private int capacity;
-    private int currentSize;
+    private int lfuCacheSize;
+
+    private static class Queue {
+
+        private Node front;
+        private Node rear;
+
+        public Node getNewNode(int key, int value) {
+            return new Node(key, value);
+        }
+
+        public void leftShiftToNextUseCounterValue(Node node) {
+
+        }
+
+        private Node getNodeForInvalidate() {
+
+            Node rearNode = rear;
+            rear = rear.prev;
+            rear.next = null;
+
+            return rearNode;
+        }
+
+    }
+
+    private static class CacheStore {
+
+        private Node[] cache;
+
+        public CacheStore(int capacity) {
+            cache = new Node[100000];
+        }
+
+        public void put(int key, Node node) {
+            cache[key] = node;
+        }
+
+        public void remove(int key) {
+            cache[key] = null;
+        }
+
+        public Node get(int key) {
+            return cache[key];
+        }
+
+        public int size() {
+            int size = 0;
+            for (Node node : cache) {
+                if (node != null) {
+                    ++size;
+                }
+            }
+            return size;
+        }
+    }
 
     private static class Node {
 
         int key;
         int val;
         int useCounter = 1;
-        int priority = 0;
 
         Node prev;
         Node next;
@@ -32,142 +82,57 @@ public class LFUCache {
         }
     }
 
-    private Node newNode(int key, int value) {
-
-        return new Node(key, value);
-    }
-
-    private void incNodeUseCounter(Node node) {
-
-        node.useCounter = node.useCounter + 1;
-    }
-
-    private void removeNodeFromQueue(Node node) {
-
-        if (this.front == node && this.rear == node) {
-            front = null;
-            rear = null;
-            return;
-        }
-
-        Node prevNode = node.prev;
-        Node nextNode = node.next;
-
-        // удаление из середины
-        if (prevNode != null && nextNode != null) {
-            prevNode.next = nextNode;
-            nextNode.prev = prevNode;
-        }
-
-        // удаление с головы
-        if (prevNode == null) {
-            front = nextNode;
-            nextNode.prev = null;
-        }
-
-        // удаление с хвоста
-        if (nextNode == null) {
-            rear = prevNode;
-            prevNode.next = null;
-        }
-
-        node.prev = null;
-        node.next = null;
-    }
-
-    private void insertFront(Node node) {
-        if (node == null) return;
-
-        if (front == null) {
-            node.priority = 1;
-            front = node;
-            rear = node;
-        } else {
-            node.priority = front.priority + 1;
-            node.next = front;
-            front.prev = node;
-            front = node;
-        }
-    }
-
-    private void moveToFront(Node node) {
-
-        if (node.prev == null && node.next == null) {
-            insertFront(node);
-            return;
-        }
-
-        if (node.key != front.key) {
-            removeNodeFromQueue(node);
-            insertFront(node);
-        }
-
-    }
-
-    private Node getNodeForDelete() {
-
-        return null;
-    }
-
     private Node invalidate() {
 
-        Node nodeForDelete = getNodeForDelete();
-
-        cache[nodeForDelete.key] = null;
+        Node nodeForDelete = queue.getNodeForInvalidate();
+        cacheStore.remove(nodeForDelete.key);
+        --lfuCacheSize;
 
         return nodeForDelete;
     }
 
     public LFUCache(int capacity) {
-        cache = new Node[100000];
+        cacheStore = new CacheStore(capacity);
+        queue = new Queue();
         this.capacity = capacity;
-        currentSize = 0;
+        lfuCacheSize = 0;
     }
 
     public int get(int key) {
-        Node node = cache[key];
 
-        if (node != null) {
-            moveToFront(node);
-            incNodeUseCounter(node);
+        Node existingNode = cacheStore.get(key);
+
+        if (existingNode != null) {
+            queue.leftShiftToNextUseCounterValue(existingNode);
         }
 
-        int res = node == null ? -1 : node.val;
-
-        return res;
+        return existingNode == null ? -1 : existingNode.val;
     }
 
-    private void putNodeInCache(Node node) {
+    private void putNodeInLFUCache(Node newNode, Node existingNode) {
 
-        Node currentNode = cache[node.key];
-
-        if (currentNode == null) {
-            cache[node.key] = node;
-            moveToFront(node);
+        if (existingNode == null) {
+            cacheStore.put(newNode.key, newNode);
+            queue.leftShiftToNextUseCounterValue(newNode);
+            ++lfuCacheSize;
         } else {
-            currentNode.val = node.val;
-            incNodeUseCounter(currentNode);
-            moveToFront(currentNode);
+            existingNode.val = newNode.val;
+            queue.leftShiftToNextUseCounterValue(existingNode);
         }
     }
 
     public void put(int key, int value) {
 
-        Node currentNode = cache[key];
+        Node existingNode = cacheStore.get(key);
 
-        if (currentNode == null) {
-            if (currentSize == capacity) {
+        if (existingNode == null) {
+            if (lfuCacheSize == capacity) {
                 invalidate();
-                --currentSize;
             }
         }
 
-        Node newNode = newNode(key, value);
-
-        putNodeInCache(newNode);
-        if (currentNode == null) {
-            ++currentSize;
-        }
+        Node newNode = queue.getNewNode(key, value);
+        putNodeInLFUCache(newNode, existingNode);
     }
 
     public static void main(String[] args) {
@@ -180,34 +145,29 @@ public class LFUCache {
 
     private void validateCacheSateAfterAction(String action) {
         // Расчеты кол-ва элементов
-        int cacheNodesInArray = 0;
-        for (Node cn : cache) {
-            if (cn != null) {
-                ++cacheNodesInArray;
-            }
-        }
+        int cacheNodesInCacheStore = cacheStore.size();
 
         int cacheNodesInLinkedList = 0;
-        Node node = front;
+        Node node = queue.front;
         while (node != null) {
             ++cacheNodesInLinkedList;
-            if (cacheNodesInLinkedList > cache.length) {
+            if (cacheNodesInLinkedList > cacheNodesInCacheStore) {
                 throwCacheInconsistentException("Бесконечный связный список", action);
             }
             node = node.next;
         }
 
         // Проверки списка
-        if (front == null && rear != null) {
+        if (queue.front == null && queue.rear != null) {
             throwCacheInconsistentException("Сломан связный список (rear)", action);
         }
 
-        if (rear == null && front != null) {
+        if (queue.rear == null && queue.front != null) {
             throwCacheInconsistentException("Сломан связный список (front)", action);
         }
 
         // Проверка кол-ва nodes
-        if (cacheNodesInArray != cacheNodesInLinkedList) {
+        if (cacheNodesInCacheStore != cacheNodesInLinkedList) {
             throwCacheInconsistentException("Кол-во nodes не совпадает", action);
         }
 
@@ -217,7 +177,7 @@ public class LFUCache {
 
         List<Integer> integerList = new ArrayList<>();
 
-        Node node = front;
+        Node node = queue.front;
         while (node != null) {
             integerList.add(node.val);
             node = node.next;
@@ -227,7 +187,7 @@ public class LFUCache {
     }
 
     public int cnt(int key) {
-        return cache[key].useCounter;
+        return cacheStore.get(key).useCounter;
     }
 
     public String nodeToString(Node node) {
@@ -238,7 +198,7 @@ public class LFUCache {
 
         List<String> integerList = new ArrayList<>();
 
-        Node node = front;
+        Node node = queue.front;
         while (node != null) {
             integerList.add(nodeToString(node));
             node = node.next;
