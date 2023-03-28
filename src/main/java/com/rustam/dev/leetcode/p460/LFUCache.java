@@ -270,6 +270,7 @@ public class LFUCache {
         if (front == null && rear != null) {
             throwCacheInconsistentException("Сломан связный список (rear)", action);
         }
+
         if (rear == null && front != null) {
             throwCacheInconsistentException("Сломан связный список (front)", action);
         }
