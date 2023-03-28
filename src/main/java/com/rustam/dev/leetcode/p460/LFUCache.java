@@ -2,6 +2,7 @@ package com.rustam.dev.leetcode.p460;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 // https://leetcode.com/problems/lfu-cache/
 public class LFUCache {
@@ -21,11 +22,45 @@ public class LFUCache {
             return new Node(key, value);
         }
 
+        public boolean isOnlyNodeInQueue(Node node) {
+            boolean res = false;
+            if (!isEmpty()) {
+                if (node.isSingleton()) {
+                    if (front == rear) {
+                        if (front == node) {
+                            res = true;
+                        }
+                    }
+                }
+            }
+
+            return res;
+        }
+
+        public boolean isEmpty() {
+            return (front == null) && (rear == null);
+        }
+
         public void leftShiftToNextUseCounterValue(Node node) {
+
+            if (isEmpty()) {
+                if (node.isSingleton()) {
+                    front = node;
+                    rear = node;
+                    return;
+                }
+            }
+
+            if (isOnlyNodeInQueue(node)) {
+                ++node.useCounter;
+                return;
+            }
+
+
 
         }
 
-        private Node getNodeForInvalidate() {
+        public Node getNodeForInvalidate() {
 
             Node rearNode = rear;
             rear = rear.prev;
@@ -33,7 +68,6 @@ public class LFUCache {
 
             return rearNode;
         }
-
     }
 
     private static class CacheStore {
@@ -76,9 +110,54 @@ public class LFUCache {
         Node prev;
         Node next;
 
-        Node(int key, int val) {
+        public Node(int key, int val) {
             this.key = key;
             this.val = val;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Node node = (Node) o;
+            return key == node.key && val == node.val && useCounter == node.useCounter;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(key, val, useCounter);
+        }
+
+        public boolean isSingleton() {
+            return (prev == null) && (next == null);
+        }
+
+        public boolean isRear() {
+            return (!isSingleton()) && (prev != null) && (next == null);
+        }
+
+        public boolean isFront() {
+            return (!isSingleton()) && (prev == null) && (next != null);
+        }
+
+        public boolean isMiddle() {
+            return (!isSingleton()) && (prev != null) && (next != null);
+        }
+
+        public void swap(Node nodeForSwap) {
+            if (this == nodeForSwap) return;
+
+            Node thisNodePrev = this.prev;
+            Node thisNodeNext = this.next;
+
+            Node nodeForSwapPrev = nodeForSwap.prev;
+            Node nodeForSwapNext = nodeForSwap.next;
+
+            this.prev = nodeForSwapPrev;
+            this.next = nodeForSwapNext;
+
+            nodeForSwap.prev = thisNodePrev;
+            nodeForSwap.next = thisNodeNext;
         }
     }
 
