@@ -246,7 +246,7 @@ public class LFUCache {
             return "Node{" +
                     "key=" + key +
                     ", val=" + val +
-                    ", useCounter=" + useCounter +
+                    ", uc=" + useCounter +
                     '}';
         }
 
