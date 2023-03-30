@@ -3,9 +3,6 @@ package com.rustam.dev.leetcode.p460;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @DisplayName("Тестирование LFU-кэша")

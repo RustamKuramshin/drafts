@@ -1,5 +1,8 @@
 package com.rustam.dev.leetcode.p460;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -8,6 +11,8 @@ import java.util.TreeMap;
 public class LFUCache {
 
     private CacheManager cm;
+
+    private boolean debug = true;
 
     // ноды очереди
     private class Node {
@@ -116,6 +121,24 @@ public class LFUCache {
             rear = node;
         }
 
+        private List<Node> toList() {
+
+            List<Node> nodeList = new ArrayList<>();
+
+            Node node = front;
+            while (node != null) {
+                nodeList.add(node);
+                node = node.next;
+            }
+
+            return nodeList;
+        }
+
+        @Override
+        public String toString() {
+            return toList().toString();
+        }
+
         // очистить очередь
         public void clear() {
             front = null;
@@ -137,7 +160,9 @@ public class LFUCache {
             }
 
             if (node.isFront()) {
-                front = front.next;
+                Node nextNode = front.next;
+                nextNode.prev = null;
+                front = nextNode;
                 node.clearLinks();
                 return;
             }
@@ -154,7 +179,9 @@ public class LFUCache {
             }
 
             if (node.isRear()) {
-                rear = rear.prev;
+                Node prevNode = rear.prev;
+                prevNode.next = null;
+                rear = prevNode;
                 node.clearLinks();
                 return;
             }
@@ -249,6 +276,22 @@ public class LFUCache {
             cache = new Node[100000];
         }
 
+        @Override
+        public String toString() {
+            Map<Integer, Node> nodeMap = new HashMap<>();
+
+            for (int i = 0; i < cache.length - 1; i++) {
+                Node node = cache[i];
+                if (node != null) {
+                    nodeMap.put(i, node);
+                }
+            }
+
+            return "CacheStore{" +
+                    "cache=" + nodeMap +
+                    '}';
+        }
+
         // поместить/обновить ноду в кэше
         public void put(int key, Node node) {
             cache[key] = node;
@@ -281,6 +324,13 @@ public class LFUCache {
 
         private TreeMap<Integer, Queue> stats;
 
+        @Override
+        public String toString() {
+            return "CacheStats{" +
+                    "stats=" + stats +
+                    '}';
+        }
+
         public CacheStats() {
             this.stats = new TreeMap<>();
         }
@@ -301,6 +351,7 @@ public class LFUCache {
                 node.owner = queue;
                 stats.put(node.useCounter, queue);
             } else {
+                node.owner = currentQueue;
                 currentQueue.insertNodeBeforeFront(node);
             }
         }
@@ -388,8 +439,8 @@ public class LFUCache {
         private Node invalidate() {
             Node nodeForDelete = cacheStats.getNodeForInvalidate();
 
-            cacheStore.remove(nodeForDelete.key);
             cacheStats.removeNode(nodeForDelete);
+            cacheStore.remove(nodeForDelete.key);
 
             --lfuCacheSize;
             return nodeForDelete;
@@ -418,7 +469,11 @@ public class LFUCache {
     // получить значение по ключу из LFU-кэша
     public int get(int key) {
         Integer possibleExistingValue = cm.get(key);
-        return possibleExistingValue == null ? -1 : possibleExistingValue;
+        int res = possibleExistingValue == null ? -1 : possibleExistingValue;
+
+        logDebugWithState("get(key=%s) => %s\n", key, res);
+
+        return res;
     }
 
     // помещением/обновлением значения по ключу в LFU-кэш
@@ -431,12 +486,24 @@ public class LFUCache {
             }
             cm.insertKeyValue(key, value);
         }
+        logDebugWithState("put(key=%s, value=%s)\n", key, value);
     }
 
     public static void main(String[] args) {
         // Ниже идут методы не участвующие в решение на leetcode
     }
 
+    private void logDebugWithState(String msg, Object... o) {
+        if (debug) {
+            System.out.println("<=======BEGIN=========");
+            System.out.println("ACTION:");
+            System.out.printf(msg, o);
+            System.out.println("STATE:");
+            System.out.printf("cache store: %s\n", cm.cacheStore);
+            System.out.printf("cache stats: %s\n", cm.cacheStats);
+            System.out.println("========END========>");
+        }
+    }
 //    private void throwCacheInconsistentException(String cause, String action) {
 //        throw new IllegalStateException(String.format("Cache state is inconsistent after action=%s! Cause=%s", action, cause));
 //    }
