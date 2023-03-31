@@ -12,7 +12,7 @@ public class LFUCache {
 
     private CacheManager cm;
 
-    private boolean debug = true;
+    private boolean debug = false;
 
     // ноды очереди
     private class Node {
