@@ -94,11 +94,6 @@ public class LFUCache {
             return false;
         }
 
-        // новая нода (новая нода всегда одиночка)
-        public boolean isNew() {
-            return (isSingleton()) && (useCounter == 1);
-        }
-
         // нода без соседей - одиночка (необязательно новая нода)
         public boolean isSingleton() {
             return (prev == null) && (next == null);
@@ -195,56 +190,6 @@ public class LFUCache {
             front = nodeForInsert;
         }
 
-        // вставить ноду левее текущей ноды
-        public void insertNodeLeft(Node currentNode, Node nodeForInsert) {
-            if (currentNode.isFront()) {
-                insertNodeBeforeFront(nodeForInsert);
-                return;
-            }
-
-            Node leftNode = currentNode.prev;
-            currentNode.prev = nodeForInsert;
-            nodeForInsert.next = currentNode;
-            nodeForInsert.prev = leftNode;
-            leftNode.next = nodeForInsert;
-        }
-
-        // вставить ноду после хвоста
-        public void insertNodeAfterRear(Node nodeForInsert) {
-            Node rearNode = rear;
-            rearNode.next = nodeForInsert;
-            nodeForInsert.prev = rearNode;
-            rear = nodeForInsert;
-        }
-
-        // вставить ноду правее текущей
-        public void insertNodeRight(Node currentNode, Node nodeForInsert) {
-            if (currentNode.isRear()) {
-                insertNodeAfterRear(nodeForInsert);
-                return;
-            }
-
-            Node rightNode = currentNode.next;
-            currentNode.next = nodeForInsert;
-            nodeForInsert.prev = currentNode;
-            nodeForInsert.next = rightNode;
-            rightNode.prev = nodeForInsert;
-        }
-
-        // очередь состоит из одной ноды
-        public boolean isOneNodeQueue() {
-            boolean res = false;
-            if (!isEmpty()) {
-                if (front == rear) {
-                    if (front.next == null) {
-                        res = true;
-                    }
-                }
-            }
-
-            return res;
-        }
-
         // очередь состоит из одной этой ноды
         public boolean isOnlyThisNodeInQueue(Node node) {
             boolean res = false;
@@ -305,17 +250,6 @@ public class LFUCache {
         // получить ноду из кэша по ключу
         public Node get(int key) {
             return cache[key];
-        }
-
-        // посчитать размер кэша, если нужно (не для отправки)
-        public int size() {
-            int size = 0;
-            for (Node node : cache) {
-                if (node != null) {
-                    ++size;
-                }
-            }
-            return size;
         }
     }
 
@@ -471,7 +405,7 @@ public class LFUCache {
         Integer possibleExistingValue = cm.get(key);
         int res = possibleExistingValue == null ? -1 : possibleExistingValue;
 
-        logDebugWithState("get(key=%s) => %s\n", key, res);
+        logDebug("get(key=%s) => %s\n", key, res);
 
         return res;
     }
@@ -486,14 +420,14 @@ public class LFUCache {
             }
             cm.insertKeyValue(key, value);
         }
-        logDebugWithState("put(key=%s, value=%s)\n", key, value);
+        logDebug("put(key=%s, value=%s)\n", key, value);
     }
 
     public static void main(String[] args) {
         // Ниже идут методы не участвующие в решение на leetcode
     }
 
-    private void logDebugWithState(String msg, Object... o) {
+    private void logDebug(String msg, Object... o) {
         if (debug) {
             System.out.println("<=======BEGIN=========");
             System.out.println("ACTION:");
@@ -504,71 +438,4 @@ public class LFUCache {
             System.out.println("========END========>");
         }
     }
-//    private void throwCacheInconsistentException(String cause, String action) {
-//        throw new IllegalStateException(String.format("Cache state is inconsistent after action=%s! Cause=%s", action, cause));
-//    }
-//
-//    private void validateCacheSateAfterAction(String action) {
-//        // Расчеты кол-ва элементов
-//        int cacheNodesInCacheStore = cacheStore.size();
-//
-//        int cacheNodesInLinkedList = 0;
-//        Node node = queue.front;
-//        while (node != null) {
-//            ++cacheNodesInLinkedList;
-//            if (cacheNodesInLinkedList > cacheNodesInCacheStore) {
-//                throwCacheInconsistentException("Бесконечный связный список", action);
-//            }
-//            node = node.next;
-//        }
-//
-//        // Проверки списка
-//        if (queue.front == null && queue.rear != null) {
-//            throwCacheInconsistentException("Сломан связный список (rear)", action);
-//        }
-//
-//        if (queue.rear == null && queue.front != null) {
-//            throwCacheInconsistentException("Сломан связный список (front)", action);
-//        }
-//
-//        // Проверка кол-ва nodes
-//        if (cacheNodesInCacheStore != cacheNodesInLinkedList) {
-//            throwCacheInconsistentException("Кол-во nodes не совпадает", action);
-//        }
-//
-//    }
-//
-//    public List<Integer> toList() {
-//
-//        List<Integer> integerList = new ArrayList<>();
-//
-//        Node node = queue.front;
-//        while (node != null) {
-//            integerList.add(node.val);
-//            node = node.next;
-//        }
-//
-//        return integerList;
-//    }
-//
-//    public int cnt(int key) {
-//        return cacheStore.get(key).useCounter;
-//    }
-//
-//    public String nodeToString(Node node) {
-//        return String.format("[key=%s,val=%s, uc=%s]", node.key, node.val, node.useCounter);
-//    }
-//
-//    public List<String> toListV2() {
-//
-//        List<String> integerList = new ArrayList<>();
-//
-//        Node node = queue.front;
-//        while (node != null) {
-//            integerList.add(nodeToString(node));
-//            node = node.next;
-//        }
-//
-//        return integerList;
-//    }
 }
