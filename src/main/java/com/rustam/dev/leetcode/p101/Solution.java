@@ -44,8 +44,6 @@ public class Solution {
         int ls = list.size();
         int lastIdx = ls - 1;
 
-        System.out.println(list);
-
         if (ls == 1) return true;
 
         for (int i = 0; i < ls; i++) {
@@ -57,8 +55,6 @@ public class Solution {
             }
 
             if ((nw1.val != nw2.val) || (nw1.position == nw2.position)) {
-                System.out.println(nw1);
-                System.out.println(nw2);
                 return false;
             }
         }
