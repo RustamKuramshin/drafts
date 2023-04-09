@@ -31,11 +31,12 @@ public class Solution {
     }
 
     private void traverseInOrder(TreeNode node, NodeWrap.Position position) {
-        if (node != null) {
-            traverseInOrder(node.left, NodeWrap.Position.LEFT);
-            list.add(new NodeWrap(node.val, position));
-            traverseInOrder(node.right, NodeWrap.Position.RIGHT);
-        }
+        if (node == null) return;
+
+        traverseInOrder(node.left, NodeWrap.Position.LEFT);
+        list.add(new NodeWrap(node.val, position));
+        traverseInOrder(node.right, NodeWrap.Position.RIGHT);
+
     }
 
     public boolean isSymmetric(TreeNode root) {
@@ -66,19 +67,19 @@ public class Solution {
 
     }
 
-    //    private void traversePreOrder(TreeNode node) {
-//        if (node != null) {
-//            list.add(node.val);
-//            traversePreOrder(node.left);
-//            traversePreOrder(node.right);
-//        }
-//    }
-//
-//    private void traversePostOrder(TreeNode node) {
-//        if (node != null) {
-//            traversePostOrder(node.left);
-//            traversePostOrder(node.right);
-//            list.add(node.val);
-//        }
-//    }
+    private void traversePreOrder(TreeNode node) {
+        if (node == null) return;
+
+        System.out.print(" " + node.val);
+        traversePreOrder(node.left);
+        traversePreOrder(node.right);
+    }
+
+    private void traversePostOrder(TreeNode node) {
+        if (node == null) return;
+
+        traversePostOrder(node.left);
+        traversePostOrder(node.right);
+        System.out.print(" " + node.val);
+    }
 }
