@@ -3,59 +3,44 @@ package com.rustam.dev.leetcode.p101;
 import com.rustam.dev.leetcode.TreeNode;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 // https://leetcode.com/problems/symmetric-tree/
 public class Solution {
 
-    private List<NodeWrap> list = new ArrayList<>();
-
-    private static class NodeWrap {
-
-        private enum Position {
-            ROOT, LEFT, RIGHT
-        }
-
-        public int val;
-        public Position position;
-
-        public NodeWrap(int val, Position position) {
-            this.val = val;
-            this.position = position;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("%s-%s", val, position);
-        }
-    }
-
-    private void traverseInOrder(TreeNode node, NodeWrap.Position position) {
-        if (node == null) return;
-
-        traverseInOrder(node.left, NodeWrap.Position.LEFT);
-        list.add(new NodeWrap(node.val, position));
-        traverseInOrder(node.right, NodeWrap.Position.RIGHT);
-
-    }
-
-    public boolean isSymmetric(TreeNode root) {
-        traverseInOrder(root, NodeWrap.Position.ROOT);
-
-        int ls = list.size();
-        int lastIdx = ls - 1;
-
-        if (ls == 1) return true;
-
-        for (int i = 0; i < ls; i++) {
-            NodeWrap nw1 = list.get(i);
-            NodeWrap nw2 = list.get(lastIdx - i);
-
-            if ((nw1.position == NodeWrap.Position.ROOT) && (nw2.position == NodeWrap.Position.ROOT)) {
-                continue;
+    private boolean allNull(List<Integer> list) {
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i) != -1000) {
+                return false;
             }
+        }
+        return true;
+    }
 
-            if ((nw1.val != nw2.val) || (nw1.position == nw2.position)) {
+    private void trimList(List<Integer> list) {
+        for (int i = list.size(); i-- > 0; ) {
+            if (list.get(i) == -1000) {
+                list.remove(i);
+            }
+        }
+    }
+
+    private boolean isSymmetricList(List<Integer> list) {
+
+        trimList(list);
+
+        if (list.size() == 1) return true;
+
+
+        if (list.size() == 0) return true;
+
+        for (int i = 0; i < list.size(); i++) {
+            int val1 = list.get(i);
+            int val2 = list.get(list.size() - 1 - i);
+
+            if (val1 != val2) {
                 return false;
             }
         }
@@ -63,23 +48,67 @@ public class Solution {
         return true;
     }
 
-    public static void main(String[] args) {
+    public boolean isSymmetric(TreeNode root) {
 
-    }
+        if (root.left == null && root.right == null) return true;
 
-    private void traversePreOrder(TreeNode node) {
-        if (node == null) return;
+        Queue<TreeNode> queue = new LinkedList<>();
+        List<Integer> list = new ArrayList<>();
 
-        System.out.print(" " + node.val);
-        traversePreOrder(node.left);
-        traversePreOrder(node.right);
-    }
+        queue.add(root);
 
-    private void traversePostOrder(TreeNode node) {
-        if (node == null) return;
+        int level = 0;
 
-        traversePostOrder(node.left);
-        traversePostOrder(node.right);
-        System.out.print(" " + node.val);
+        while (!queue.isEmpty()) {
+
+            TreeNode treeNode = queue.remove();
+
+            list.add(treeNode.val);
+
+            if (list.size() == (1 << level)) {
+                if (!isSymmetricList(list)) {
+                    System.out.println("1 " + list);
+                    return false;
+                }
+
+                list.clear();
+                ++level;
+            }
+
+            if (treeNode.left == null && treeNode.right == null) {
+
+                if (treeNode.val != -1000) {
+                    queue.add(new TreeNode(-1000));
+                    queue.add(new TreeNode(-1000));
+                }
+
+                continue;
+            }
+
+            if (treeNode.left != null) {
+                queue.add(treeNode.left);
+            } else {
+                queue.add(new TreeNode(-1000));
+            }
+
+            if (treeNode.right != null) {
+                queue.add(treeNode.right);
+            } else {
+                queue.add(new TreeNode(-1000));
+            }
+        }
+
+        if (list.size() != 0 && allNull(list)) {
+            System.out.println("2 " + list);
+            return false;
+        }
+
+        if (list.size() != 0 && isSymmetricList(list)) {
+            System.out.println("3 " + list);
+            return true;
+        }
+
+        System.out.println("4 " + list);
+        return list.size() == 0;
     }
 }
