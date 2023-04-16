@@ -16,16 +16,16 @@ class CalculateSum {
 
         List<BigDecimal> persentsBD = persents.stream()
                 .map(BigDecimal::new)
-                .map(p -> p.setScale(2, RoundingMode.HALF_DOWN))
+                .map(p -> p.setScale(2))
                 .collect(Collectors.toList());
 
         List<BigDecimal> purchasesBD = purchases.stream()
                 .map(BigDecimal::new)
-                .map(p -> p.setScale(2, RoundingMode.HALF_DOWN))
+                .map(p -> p.setScale(2))
                 .collect(Collectors.toList());
 
 
-        BigDecimal sum = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_DOWN);
+        BigDecimal sum = BigDecimal.ZERO;
 
         for (int i = 0; i < purchasesBD.size(); i++) {
             BigDecimal mul = purchasesBD.get(i).multiply(persentsBD.get(i)).setScale(2, RoundingMode.HALF_DOWN);

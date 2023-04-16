@@ -42,7 +42,7 @@ public class Pangram {
 
         Map<Character, Integer> charMap = characterCount(input);
 
-        String res = charMap.keySet().stream().map(c->c.toString()).collect(Collectors.joining());
+        String res = charMap.keySet().stream().map(Object::toString).collect(Collectors.joining());
 
         if (res.equals(alphabet)) {
             System.out.println("True");
