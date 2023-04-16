@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,17 +28,10 @@ class CalculateSum {
         BigDecimal sum = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_DOWN);
 
         for (int i = 0; i < purchasesBD.size(); i++) {
-//            sum = sum + purchases.get(i) * persents.get(i);
             BigDecimal mul = purchasesBD.get(i).multiply(persentsBD.get(i)).setScale(2, RoundingMode.HALF_DOWN);
             sum = sum.add(mul).setScale(2, RoundingMode.HALF_DOWN);
         }
 
         System.out.println(sum);
-    }
-}
-
-class TCupUtil {
-    public static List<Double> getDoubles(BufferedReader inputDataBR) {
-        return Collections.emptyList();
     }
 }
