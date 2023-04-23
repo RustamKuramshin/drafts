@@ -10,36 +10,25 @@ public class Solution {
     private boolean res = false;
     private int ts;
 
-    private int arraySum(int[] arr) {
-        return Arrays.stream(arr).sum();
-    }
-
-    private void findPathsRootToLeaf(TreeNode node, int[] paths, int idx) {
+    private void findPathsRootToLeaf(TreeNode node, int sum) {
         if (node == null) return;
         if (res) return;
 
-        paths[idx] = node.val;
-        ++idx;
+        sum = sum + node.val;
 
         if (node.left == null && node.right == null) {
-            int[] p = Arrays.copyOfRange(paths, 0, idx);
-
-            if (arraySum(p) == ts) {
+            if (sum == ts) {
                 res = true;
             }
-
-            System.out.println(Arrays.toString(p));
         } else {
-            findPathsRootToLeaf(node.left, paths, idx);
-            findPathsRootToLeaf(node.right, paths, idx);
+            findPathsRootToLeaf(node.left, sum);
+            findPathsRootToLeaf(node.right, sum);
         }
     }
 
     public boolean hasPathSum(TreeNode root, int targetSum) {
         ts = targetSum;
-        int[] paths = new int[5000];
-        int i = 0;
-        findPathsRootToLeaf(root, paths, i);
+        findPathsRootToLeaf(root, 0);
         return res;
     }
 }
