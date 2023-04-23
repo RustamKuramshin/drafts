@@ -17,13 +17,13 @@ public class Solution {
         Deque<Character> stack = new ArrayDeque<>();
 
         for (int i = 0; i < s.length(); i++) {
+
             char currChar = s.charAt(i);
 
             Character first = stack.peekFirst();
 
             if (first != null) {
-                boolean paired = isPaired(first, currChar);
-                if (paired) {
+                if (isPaired(first, currChar)) {
                     stack.removeFirst();
                 } else {
                     stack.addFirst(currChar);
