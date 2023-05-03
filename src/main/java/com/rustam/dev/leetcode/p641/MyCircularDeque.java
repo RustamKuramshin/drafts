@@ -3,6 +3,8 @@ package com.rustam.dev.leetcode.p641;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.rustam.dev.leetcode.LeetCodeUtils.Node;
+
 public class MyCircularDeque {
     
     private int enQueuedCount = 0;
@@ -10,21 +12,6 @@ public class MyCircularDeque {
 
     private Node front;
     private Node rear;
-
-    private static class Node {
-
-        Node prev;
-        Node next;
-
-        int val;
-
-        public Node() {
-        }
-
-        public Node(int val) {
-            this.val = val;
-        }
-    }
 
     public MyCircularDeque(int k) {
         this.maxQueueSize = k;

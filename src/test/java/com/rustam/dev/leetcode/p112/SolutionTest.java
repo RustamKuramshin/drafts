@@ -1,10 +1,11 @@
 package com.rustam.dev.leetcode.p112;
 
-import com.rustam.dev.leetcode.TreeNode;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static com.rustam.dev.leetcode.LeetCodeUtils.TreeNode;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DisplayName("Тестирование метода проверки существования пути в двоичном дереве с заданной суммой")
 public class SolutionTest {

@@ -3,46 +3,13 @@ package com.rustam.dev.leetcode.p141;
 import java.util.HashSet;
 import java.util.Set;
 
+import static com.rustam.dev.leetcode.LeetCodeUtils.ListNode;
+
+// https://leetcode.com/problems/linked-list-cycle/
 public class Solution {
 
-    private static class ListNode {
-
-        int val;
-        ListNode next;
-
-        boolean isTail;
-
-        ListNode(int x) {
-            val = x;
-            next = null;
-        }
-
-        ListNode(int x, boolean isTail) {
-            this(x);
-            this.isTail = isTail;
-        }
-    }
-
-    private static void printListNode(ListNode listNode) {
-        StringBuilder res = new StringBuilder();
-        res.append("[");
-
-        ListNode node = listNode;
-        do {
-            res.append(node.val);
-            node = node.next;
-            if (node != null) res.append(", ");
-        } while (node != null && !node.isTail);
-
-        if (node != null) res.append(node.val);
-
-        res.append("]");
-
-        System.out.println(res);
-    }
-
     public boolean hasCycle(ListNode head) {
-//        printListNode(head);
+//        head.printListNode();
 
         boolean res = false;
 

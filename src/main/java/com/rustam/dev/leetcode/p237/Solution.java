@@ -4,17 +4,9 @@ import java.lang.ref.PhantomReference;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 
+import static com.rustam.dev.leetcode.LeetCodeUtils.ListNode;
+
 public class Solution {
-
-    private static class ListNode {
-
-        int val;
-        ListNode next;
-
-        ListNode(int x) {
-            this.val = x;
-        }
-    }
 
     private class ObjectFinalizer extends PhantomReference<Object> {
 

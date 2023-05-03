@@ -1,46 +1,8 @@
 package com.rustam.dev.leetcode.p021;
 
+import static com.rustam.dev.leetcode.LeetCodeUtils.ListNode;
+
 public class Solution {
-
-    private static class ListNode {
-
-        int val;
-        ListNode next;
-
-        ListNode() {
-        }
-
-        ListNode(int val) {
-            this.val = val;
-        }
-
-        ListNode(int val, ListNode next) {
-            this.val = val;
-            this.next = next;
-        }
-    }
-
-    private static void printListNode(ListNode listNode) {
-
-        if (listNode == null) {
-            System.out.println("[]");
-            return;
-        }
-
-        StringBuilder res = new StringBuilder();
-        res.append("[");
-
-        ListNode node = listNode;
-        do {
-            res.append(node.val);
-            node = node.next;
-            if (node != null) res.append(", ");
-        } while (node != null);
-
-        res.append("]");
-
-        System.out.println(res);
-    }
 
     public ListNode mergeTwoLists(ListNode list1, ListNode list2) {
 
@@ -121,13 +83,13 @@ public class Solution {
         ln2.next = new ListNode(3);
         ln2.next.next = new ListNode(4);
 
-        printListNode(s.mergeTwoLists(ln1, ln2)); // [1, 1, 2, 3, 4, 4]
+        s.mergeTwoLists(ln1, ln2).printListNode(); // [1, 1, 2, 3, 4, 4]
 
-        printListNode(s.mergeTwoLists(null, null)); // null
+        System.out.println(s.mergeTwoLists(null, null)); // null
 
         ListNode ln6 = new ListNode(0);
 
-        printListNode(s.mergeTwoLists(null, ln6)); // [0]
+        s.mergeTwoLists(null, ln6).printListNode(); // [0]
 
 
         ListNode ln7 = new ListNode(1);
@@ -138,25 +100,25 @@ public class Solution {
         ln8.next = new ListNode(2);
         ln8.next.next = new ListNode(2);
 
-        printListNode(s.mergeTwoLists(ln7, ln8)); // [1, 1, 1, 2, 2, 2]
+        s.mergeTwoLists(ln7, ln8).printListNode(); // [1, 1, 1, 2, 2, 2]
 
         ListNode ln9 = new ListNode(1);
 
         ListNode ln10 = new ListNode(2);
 
-        printListNode(s.mergeTwoLists(ln9, ln10)); // [1, 2]
+        s.mergeTwoLists(ln9, ln10).printListNode(); // [1, 2]
 
         ListNode ln11 = new ListNode(1);
 
         ListNode ln12 = new ListNode(1);
 
-        printListNode(s.mergeTwoLists(ln11, ln12)); // [1, 1]
+        s.mergeTwoLists(ln11, ln12).printListNode(); // [1, 1]
 
         ListNode ln13 = new ListNode(1);
 
         ListNode ln14 = new ListNode(0);
 
-        printListNode(s.mergeTwoLists(ln13, ln14)); // [0, 1]
+        s.mergeTwoLists(ln13, ln14).printListNode(); // [0, 1]
 
         ListNode ln15 = new ListNode(5);
 
@@ -164,7 +126,7 @@ public class Solution {
         ln16.next = new ListNode(2);
         ln16.next.next = new  ListNode(4);
 
-        printListNode(s.mergeTwoLists(ln15, ln16)); // [1, 2, 4, 5]
+        s.mergeTwoLists(ln15, ln16).printListNode(); // [1, 2, 4, 5]
 
         ListNode ln17 = new ListNode(5);
         ln17.next = new ListNode(6);
@@ -173,7 +135,7 @@ public class Solution {
         ln18.next = new ListNode(2);
         ln18.next.next = new  ListNode(4);
 
-        printListNode(s.mergeTwoLists(ln17, ln18)); // [1, 2, 4, 5, 6]
+        s.mergeTwoLists(ln17, ln18).printListNode(); // [1, 2, 4, 5, 6]
 
         ListNode ln19 = new ListNode(-6);
         ln19.next = new ListNode(-5);
@@ -183,7 +145,7 @@ public class Solution {
 
         ListNode ln20 = new ListNode(0);
 
-        printListNode(s.mergeTwoLists(ln19, ln20)); // [-6, -5, 0, 6, 6, 7]
+        s.mergeTwoLists(ln19, ln20).printListNode(); // [-6, -5, 0, 6, 6, 7]
     }
 }
 

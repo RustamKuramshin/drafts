@@ -3,49 +3,10 @@ package com.rustam.dev.leetcode.p061;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.rustam.dev.leetcode.LeetCodeUtils.ListNode;
+
 // https://leetcode.com/problems/rotate-list/
 public class Solution {
-
-    private static class ListNode {
-
-        int val;
-
-        ListNode next;
-
-        ListNode() {
-        }
-
-        ListNode(int val) {
-            this.val = val;
-        }
-
-        ListNode(int val, ListNode next) {
-            this.val = val;
-            this.next = next;
-        }
-    }
-
-    private static void printListNode(ListNode listNode) {
-
-        if (listNode == null) {
-            System.out.println("[]");
-            return;
-        }
-
-        StringBuilder res = new StringBuilder();
-        res.append("[");
-
-        ListNode node = listNode;
-        do {
-            res.append(node.val);
-            node = node.next;
-            if (node != null) res.append(", ");
-        } while (node != null);
-
-        res.append("]");
-
-        System.out.println(res);
-    }
 
     private static List<Integer> listNodeToList(ListNode head) {
         List<Integer> nodesList = new ArrayList<>();
@@ -115,17 +76,17 @@ public class Solution {
         ln1.next.next.next = new ListNode(4);
         ln1.next.next.next.next = new ListNode(5);
 
-        printListNode(s.rotateRight(ln1, 2));
+        s.rotateRight(ln1, 2).printListNode();
 
         ListNode ln2 = new ListNode(0);
         ln2.next = new ListNode(1);
         ln2.next.next = new ListNode(2);
 
-        printListNode(s.rotateRight(ln2, 4));
+        s.rotateRight(ln2, 4).printListNode();
 
         ListNode ln3 = new ListNode(1);
         ln3.next = new ListNode(2);
 
-        printListNode(s.rotateRight(ln3, 3));
+        s.rotateRight(ln3, 3).printListNode();
     }
 }

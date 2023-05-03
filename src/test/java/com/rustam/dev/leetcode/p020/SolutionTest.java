@@ -3,7 +3,8 @@ package com.rustam.dev.leetcode.p020;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DisplayName("Тестирование метода валидатора скобочек")
 public class SolutionTest {

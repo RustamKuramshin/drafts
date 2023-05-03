@@ -4,7 +4,9 @@ import com.rustam.dev.leetcode.p622.array.MyCircularQueue;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 @DisplayName("Тестирования круговой очереди")
 public class MyCircularQueueTest {

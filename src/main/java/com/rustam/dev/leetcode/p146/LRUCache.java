@@ -1,5 +1,7 @@
 package com.rustam.dev.leetcode.p146;
 
+import static com.rustam.dev.leetcode.LeetCodeUtils.Node;
+
 public class LRUCache {
 
     private Node[] table;
@@ -13,24 +15,6 @@ public class LRUCache {
     private void logDebug(String msg, Object... o) {
         if (debug) {
             System.out.printf(msg, o);
-        }
-    }
-
-    private static class Node {
-
-        int key;
-        int val;
-
-        Node prev;
-        Node next;
-
-        Node(int val) {
-            this.val = val;
-        }
-
-        Node(int key, int val) {
-            this.key = key;
-            this.val = val;
         }
     }
 
@@ -154,30 +138,8 @@ public class LRUCache {
         lruCache3.get(2);
     }
 
-    private static void printFromNode(Node fromNode) {
-
-        if (fromNode == null) {
-            System.out.println("[]");
-            return;
-        }
-
-        StringBuilder res = new StringBuilder();
-        res.append("[");
-
-        Node node = fromNode;
-        do {
-            res.append(node.val);
-            node = node.next;
-            if (node != null) res.append(", ");
-        } while (node != null);
-
-        res.append("]");
-
-        System.out.println(res);
-    }
-
     private void printCache() {
         System.out.print("cache: ");
-        printFromNode(this.head);
+        this.head.printNode();
     }
 }

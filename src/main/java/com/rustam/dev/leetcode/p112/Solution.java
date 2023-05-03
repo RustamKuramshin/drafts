@@ -1,6 +1,6 @@
 package com.rustam.dev.leetcode.p112;
 
-import com.rustam.dev.leetcode.TreeNode;
+import static com.rustam.dev.leetcode.LeetCodeUtils.TreeNode;
 
 // https://leetcode.com/problems/path-sum/
 public class Solution {

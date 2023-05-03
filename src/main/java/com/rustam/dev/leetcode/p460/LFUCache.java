@@ -15,7 +15,7 @@ public class LFUCache {
     private boolean debug = false;
 
     // ноды очереди
-    private class Node {
+    private class QueueNode {
 
         public int key;
         public int val;
@@ -24,10 +24,10 @@ public class LFUCache {
 
         public Queue owner;
 
-        public Node prev;
-        public Node next;
+        public QueueNode prev;
+        public QueueNode next;
 
-        public Node(int key, int val) {
+        public QueueNode(int key, int val) {
             this.key = key;
             this.val = val;
         }
@@ -36,8 +36,8 @@ public class LFUCache {
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
-            Node node = (Node) o;
-            return key == node.key && val == node.val && useCounter == node.useCounter;
+            QueueNode queueNode = (QueueNode) o;
+            return key == queueNode.key && val == queueNode.val && useCounter == queueNode.useCounter;
         }
 
         @Override
@@ -104,29 +104,29 @@ public class LFUCache {
     private class Queue {
 
         // голова
-        private Node front;
+        private QueueNode front;
         // хвост
-        private Node rear;
+        private QueueNode rear;
 
-        public Queue(Node node) {
-            if (!node.isSingleton()) {
+        public Queue(QueueNode queueNode) {
+            if (!queueNode.isSingleton()) {
                 throw new IllegalStateException("Нельзя создать очередь с нодой, которая не одиночка");
             }
-            front = node;
-            rear = node;
+            front = queueNode;
+            rear = queueNode;
         }
 
-        private List<Node> toList() {
+        private List<QueueNode> toList() {
 
-            List<Node> nodeList = new ArrayList<>();
+            List<QueueNode> queueNodeList = new ArrayList<>();
 
-            Node node = front;
-            while (node != null) {
-                nodeList.add(node);
-                node = node.next;
+            QueueNode queueNode = front;
+            while (queueNode != null) {
+                queueNodeList.add(queueNode);
+                queueNode = queueNode.next;
             }
 
-            return nodeList;
+            return queueNodeList;
         }
 
         @Override
@@ -141,62 +141,62 @@ public class LFUCache {
         }
 
         // удалить ноду из очереди
-        public void removeNode(Node node) {
-            if (node.owner != this) {
+        public void removeNode(QueueNode queueNode) {
+            if (queueNode.owner != this) {
                 throw new RuntimeException("Нельзя удалить ноду из очереди. Нода не принадлежит очереди");
             }
 
             if (isEmpty()) return;
 
-            if (isOnlyThisNodeInQueue(node)) {
+            if (isOnlyThisNodeInQueue(queueNode)) {
                 clear();
-                node.clearLinks();
+                queueNode.clearLinks();
                 return;
             }
 
-            if (node.isFront()) {
-                Node nextNode = front.next;
-                nextNode.prev = null;
-                front = nextNode;
-                node.clearLinks();
+            if (queueNode.isFront()) {
+                QueueNode nextQueueNode = front.next;
+                nextQueueNode.prev = null;
+                front = nextQueueNode;
+                queueNode.clearLinks();
                 return;
             }
 
-            if (node.isMiddle()) {
-                Node prevNode = node.prev;
-                Node nextNode = node.next;
+            if (queueNode.isMiddle()) {
+                QueueNode prevQueueNode = queueNode.prev;
+                QueueNode nextQueueNode = queueNode.next;
 
-                prevNode.next = nextNode;
-                nextNode.prev = prevNode;
+                prevQueueNode.next = nextQueueNode;
+                nextQueueNode.prev = prevQueueNode;
 
-                node.clearLinks();
+                queueNode.clearLinks();
                 return;
             }
 
-            if (node.isRear()) {
-                Node prevNode = rear.prev;
-                prevNode.next = null;
-                rear = prevNode;
-                node.clearLinks();
+            if (queueNode.isRear()) {
+                QueueNode prevQueueNode = rear.prev;
+                prevQueueNode.next = null;
+                rear = prevQueueNode;
+                queueNode.clearLinks();
                 return;
             }
         }
 
         // вставить ноду перед головой
-        public void insertNodeBeforeFront(Node nodeForInsert) {
-            Node frontNode = front;
-            frontNode.prev = nodeForInsert;
-            nodeForInsert.next = frontNode;
-            front = nodeForInsert;
+        public void insertNodeBeforeFront(QueueNode queueNodeForInsert) {
+            QueueNode frontQueueNode = front;
+            frontQueueNode.prev = queueNodeForInsert;
+            queueNodeForInsert.next = frontQueueNode;
+            front = queueNodeForInsert;
         }
 
         // очередь состоит из одной этой ноды
-        public boolean isOnlyThisNodeInQueue(Node node) {
+        public boolean isOnlyThisNodeInQueue(QueueNode queueNode) {
             boolean res = false;
             if (!isEmpty()) {
-                if (node.isSingleton()) {
+                if (queueNode.isSingleton()) {
                     if (front == rear) {
-                        if (front == node) {
+                        if (front == queueNode) {
                             res = true;
                         }
                     }
@@ -215,20 +215,20 @@ public class LFUCache {
     // хранилище кэша
     private class CacheStore {
 
-        private Node[] cache;
+        private QueueNode[] cache;
 
         public CacheStore(int capacity) {
-            cache = new Node[100000];
+            cache = new QueueNode[100000];
         }
 
         @Override
         public String toString() {
-            Map<Integer, Node> nodeMap = new HashMap<>();
+            Map<Integer, QueueNode> nodeMap = new HashMap<>();
 
             for (int i = 0; i < cache.length - 1; i++) {
-                Node node = cache[i];
-                if (node != null) {
-                    nodeMap.put(i, node);
+                QueueNode queueNode = cache[i];
+                if (queueNode != null) {
+                    nodeMap.put(i, queueNode);
                 }
             }
 
@@ -238,8 +238,8 @@ public class LFUCache {
         }
 
         // поместить/обновить ноду в кэше
-        public void put(int key, Node node) {
-            cache[key] = node;
+        public void put(int key, QueueNode queueNode) {
+            cache[key] = queueNode;
         }
 
         // удалить ноду из кэша
@@ -248,7 +248,7 @@ public class LFUCache {
         }
 
         // получить ноду из кэша по ключу
-        public Node get(int key) {
+        public QueueNode get(int key) {
             return cache[key];
         }
     }
@@ -269,62 +269,62 @@ public class LFUCache {
             this.stats = new TreeMap<>();
         }
 
-        private void removeNodeFromQueue(Queue queue, Node node) {
-            queue.removeNode(node);
+        private void removeNodeFromQueue(Queue queue, QueueNode queueNode) {
+            queue.removeNode(queueNode);
 
             if (queue.isEmpty()) {
-                stats.remove(node.useCounter);
+                stats.remove(queueNode.useCounter);
             }
         }
 
         // создать очередь и поместить ноду или поместить ноду в существующую очередь
-        private void createOrInsertInQueueForNode(Node node) {
-            Queue currentQueue = stats.get(node.useCounter);
+        private void createOrInsertInQueueForNode(QueueNode queueNode) {
+            Queue currentQueue = stats.get(queueNode.useCounter);
             if (currentQueue == null) {
-                Queue queue = new Queue(node);
-                node.owner = queue;
-                stats.put(node.useCounter, queue);
+                Queue queue = new Queue(queueNode);
+                queueNode.owner = queue;
+                stats.put(queueNode.useCounter, queue);
             } else {
-                node.owner = currentQueue;
-                currentQueue.insertNodeBeforeFront(node);
+                queueNode.owner = currentQueue;
+                currentQueue.insertNodeBeforeFront(queueNode);
             }
         }
 
         // создать статистику для ноды
-        public void createStatsForNode(Node node) {
-            createOrInsertInQueueForNode(node);
+        public void createStatsForNode(QueueNode queueNode) {
+            createOrInsertInQueueForNode(queueNode);
         }
 
         // обновить статистику для ноды
-        public void updateStatsForNode(Node node) {
-            Queue currentQueue = stats.get(node.useCounter);
+        public void updateStatsForNode(QueueNode queueNode) {
+            Queue currentQueue = stats.get(queueNode.useCounter);
 
             if (currentQueue == null) {
                 throw new RuntimeException("Почему-то для существующей ноды нет очереди в статистике");
             }
 
-            removeNodeFromQueue(currentQueue, node);
+            removeNodeFromQueue(currentQueue, queueNode);
 
-            ++node.useCounter;
+            ++queueNode.useCounter;
 
-            createOrInsertInQueueForNode(node);
+            createOrInsertInQueueForNode(queueNode);
         }
 
         // получить ноду для ивалидации (удаления из кэша)
-        public Node getNodeForInvalidate() {
+        public QueueNode getNodeForInvalidate() {
             Map.Entry<Integer, Queue> min = stats.firstEntry();
             Queue minQueue = min.getValue();
             return minQueue.rear;
         }
 
-        public void removeNode(Node node) {
-            Queue currentQueue = stats.get(node.useCounter);
+        public void removeNode(QueueNode queueNode) {
+            Queue currentQueue = stats.get(queueNode.useCounter);
 
             if (currentQueue == null) {
                 throw new RuntimeException("Нельзя удалить ноду из статистики, если для нее нет очереди");
             }
 
-            removeNodeFromQueue(currentQueue, node);
+            removeNodeFromQueue(currentQueue, queueNode);
         }
     }
 
@@ -344,40 +344,40 @@ public class LFUCache {
         }
 
         public Integer get(int key) {
-            Node possibleExistingNode = cacheStore.get(key);
-            if (possibleExistingNode != null) {
-                cacheStats.updateStatsForNode(possibleExistingNode);
+            QueueNode possibleExistingQueueNode = cacheStore.get(key);
+            if (possibleExistingQueueNode != null) {
+                cacheStats.updateStatsForNode(possibleExistingQueueNode);
             }
-            return possibleExistingNode != null ? possibleExistingNode.val : null;
+            return possibleExistingQueueNode != null ? possibleExistingQueueNode.val : null;
         }
 
         public void insertKeyValue(int key, int value) {
-            Node newNode = getNewNode(key, value);
-            cacheStore.put(key, newNode);
-            cacheStats.createStatsForNode(newNode);
+            QueueNode newQueueNode = getNewNode(key, value);
+            cacheStore.put(key, newQueueNode);
+            cacheStats.createStatsForNode(newQueueNode);
             ++lfuCacheSize;
         }
 
         public void updateKeyValue(int key, int value) {
-            Node existingNode = cacheStore.get(key);
-            existingNode.val = value;
-            cacheStats.updateStatsForNode(existingNode);
+            QueueNode existingQueueNode = cacheStore.get(key);
+            existingQueueNode.val = value;
+            cacheStats.updateStatsForNode(existingQueueNode);
         }
 
         // Получение новой ноды
-        private Node getNewNode(int key, int value) {
-            return new Node(key, value);
+        private QueueNode getNewNode(int key, int value) {
+            return new QueueNode(key, value);
         }
 
         // провести инвалидацию
-        private Node invalidate() {
-            Node nodeForDelete = cacheStats.getNodeForInvalidate();
+        private QueueNode invalidate() {
+            QueueNode queueNodeForDelete = cacheStats.getNodeForInvalidate();
 
-            cacheStats.removeNode(nodeForDelete);
-            cacheStore.remove(nodeForDelete.key);
+            cacheStats.removeNode(queueNodeForDelete);
+            cacheStore.remove(queueNodeForDelete.key);
 
             --lfuCacheSize;
-            return nodeForDelete;
+            return queueNodeForDelete;
         }
 
         // кэш полон

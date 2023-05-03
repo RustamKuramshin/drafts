@@ -1,11 +1,11 @@
 package com.rustam.dev.leetcode.p101;
 
-import com.rustam.dev.leetcode.TreeNode;
-
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+
+import static com.rustam.dev.leetcode.LeetCodeUtils.TreeNode;
 
 // https://leetcode.com/problems/symmetric-tree/
 public class Solution {

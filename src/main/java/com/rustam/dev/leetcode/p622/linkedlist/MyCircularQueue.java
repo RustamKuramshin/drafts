@@ -2,6 +2,8 @@ package com.rustam.dev.leetcode.p622.linkedlist;
 
 import com.rustam.dev.leetcode.p622.IMyCircularQueue;
 
+import static com.rustam.dev.leetcode.LeetCodeUtils.Node;
+
 public class MyCircularQueue implements IMyCircularQueue {
 
     private int enQueuedCount = 0;
@@ -9,21 +11,6 @@ public class MyCircularQueue implements IMyCircularQueue {
 
     private Node front;
     private Node rear;
-
-    private static class Node {
-
-        Node prev;
-        Node next;
-
-        int val;
-
-        public Node() {
-        }
-
-        public Node(int val) {
-            this.val = val;
-        }
-    }
 
     // Инициализирует объект размером очереди k
     public MyCircularQueue(int k) {
