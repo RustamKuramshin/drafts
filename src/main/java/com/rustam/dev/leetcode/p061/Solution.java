@@ -1,8 +1,9 @@
-package com.rustam.dev.leetcode.p61;
+package com.rustam.dev.leetcode.p061;
 
 import java.util.ArrayList;
 import java.util.List;
 
+// https://leetcode.com/problems/rotate-list/
 public class Solution {
 
     private static class ListNode {
