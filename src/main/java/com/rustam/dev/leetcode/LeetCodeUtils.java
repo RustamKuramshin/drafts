@@ -142,7 +142,11 @@ public class LeetCodeUtils {
             this.right = right;
         }
 
-        // Constructor that allows you to create a binary tree from a standard array representation: [2,1,3,null,4,null,7].
+        /**
+         * Constructor that allows you to create a binary tree from a standard array representation: [2,1,3,null,4,null,7].
+         * @param treeAsStrArr
+         * @return
+         */
         public static TreeNode of(String treeAsStrArr) {
             Integer[] arr = CommonUtils.arrayFromString(treeAsStrArr);
             return insertLevelOrder(arr, 0);
