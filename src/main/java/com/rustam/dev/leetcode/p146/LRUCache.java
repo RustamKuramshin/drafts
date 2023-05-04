@@ -12,6 +12,7 @@ public class LRUCache {
     private int capacity;
 
     private boolean debug = true;
+
     private void logDebug(String msg, Object... o) {
         if (debug) {
             System.out.printf(msg, o);
