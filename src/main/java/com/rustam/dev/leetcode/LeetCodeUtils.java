@@ -5,15 +5,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.stream.Collectors;
 
 /**
- * Super lightweight library for leetcode and Java!
+ * Super lightweight java library for leetcode!
  * A utility class that contains code that helps in solving problems from leetcode in the Java language.
  * Standard leetcode data structures augmented with useful methods.
  */
@@ -21,52 +24,6 @@ public class LeetCodeUtils {
 
     private LeetCodeUtils() {
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
-    }
-
-    /**
-     * Standard class describing a doubly linked list and supplemented with useful fields and methods.
-     */
-    public static class Node {
-
-        public Node prev;
-        public Node next;
-
-        public int val;
-
-        // If you need to store the key in problems with caches
-        public int key;
-
-        public Node() {
-        }
-
-        public Node(int val) {
-            this.val = val;
-        }
-
-        public Node(int key, int val) {
-            this.key = key;
-            this.val = val;
-        }
-
-        /**
-         * Prints a linked list in the format: [1,2,3]
-         */
-        public void printNode() {
-
-            StringBuilder res = new StringBuilder();
-            res.append("[");
-
-            Node node = this;
-            do {
-                res.append(node.val);
-                node = node.next;
-                if (node != null) res.append(", ");
-            } while (node != null);
-
-            res.append("]");
-
-            System.out.println(res);
-        }
     }
 
     /**
@@ -121,6 +78,52 @@ public class LeetCodeUtils {
     }
 
     /**
+     * Standard class describing a doubly linked list and supplemented with useful fields and methods.
+     */
+    public static class Node {
+
+        public Node prev;
+        public Node next;
+
+        public int val;
+
+        // If you need to store the key in problems with caches
+        public int key;
+
+        public Node() {
+        }
+
+        public Node(int val) {
+            this.val = val;
+        }
+
+        public Node(int key, int val) {
+            this.key = key;
+            this.val = val;
+        }
+
+        /**
+         * Prints a linked list in the format: [1,2,3]
+         */
+        public void printNode() {
+
+            StringBuilder res = new StringBuilder();
+            res.append("[");
+
+            Node node = this;
+            do {
+                res.append(node.val);
+                node = node.next;
+                if (node != null) res.append(", ");
+            } while (node != null);
+
+            res.append("]");
+
+            System.out.println(res);
+        }
+    }
+
+    /**
      * A standard class that describes a binary tree and is supplemented with useful fields and methods.
      */
     public static class TreeNode {
@@ -144,16 +147,23 @@ public class LeetCodeUtils {
 
         /**
          * Constructor that allows you to create a binary tree from a standard array representation: [2,1,3,null,4,null,7].
+         *
          * @param treeAsStrArr
          * @return
          */
-        public static TreeNode of(String treeAsStrArr) {
+        public static TreeNode ofArrayString(String treeAsStrArr) {
             Integer[] arr = CommonUtils.arrayFromString(treeAsStrArr);
-            return insertLevelOrder(arr, 0);
+            return array2btree(arr, 0);
         }
 
-        // Integer[] -> TreeNode root
-        private static TreeNode insertLevelOrder(Integer[] arr, int i) {
+        /**
+         * A method that converts an integer array obtained by breadth-first traversal of a binary tree into a binary tree.
+         *
+         * @param arr
+         * @param i
+         * @return
+         */
+        public static TreeNode array2btree(Integer[] arr, int i) {
             TreeNode treeNode = null;
 
             if (i < arr.length) {
@@ -162,29 +172,66 @@ public class LeetCodeUtils {
 
                 treeNode = new TreeNode(arr[i]);
 
-                treeNode.left = insertLevelOrder(arr, 2 * i + 1);
+                treeNode.left = array2btree(arr, 2 * i + 1);
 
-                treeNode.right = insertLevelOrder(arr, 2 * i + 2);
+                treeNode.right = array2btree(arr, 2 * i + 2);
             }
 
             return treeNode;
         }
+
+        /**
+         * A method that converts a binary tree to an integer array obtained by breadth-first traversal of the binary tree.
+         * @param root
+         * @return
+         */
+        public static Integer[] btree2array(TreeNode root) {
+            if (root == null) {
+                return new Integer[0];
+            }
+
+            List<Integer> list = new ArrayList<>();
+            Queue<TreeNode> queue = new LinkedList<>();
+            queue.offer(root);
+
+            while (!queue.isEmpty()) {
+                int size = queue.size();
+                for (int i = 0; i < size; i++) {
+                    TreeNode node = queue.poll();
+                    list.add(node.val);
+                    if (node.left != null) {
+                        queue.offer(node.left);
+                    }
+                    if (node.right != null) {
+                        queue.offer(node.right);
+                    }
+                }
+            }
+
+            Integer[] result = new Integer[list.size()];
+            for (int i = 0; i < list.size(); i++) {
+                result[i] = list.get(i);
+            }
+
+            return result;
+        }
     }
 
     /**
-     * Test case player in the task with LFU cache.
+     * Test case player in the task with cache.
      */
-    public static class LFUCacheTestCasePlayer {
+    public static class CacheTestCasePlayer {
 
         /**
          * Method launching test cases.
          * SAVE THE TEST DATA IN FILES IN THE RESOURCES DIRECTORY!
-         * @param lfuClass - LFU Cache class reference (clazz for reflection).
-         * @param methodsFilePath - Path to the file where the array of methods is saved.
+         *
+         * @param cacheClass       - Cache class reference (clazz for reflection).
+         * @param methodsFilePath  - Path to the file where the array of methods is saved.
          * @param testDataFilePath - Path to the file where the array of test data is saved.
          * @throws NoSuchMethodException
          */
-        public static void playTestCase(Class<?> lfuClass, String methodsFilePath, String testDataFilePath) throws NoSuchMethodException {
+        public static void playTestCase(Class<?> cacheClass, String methodsFilePath, String testDataFilePath) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
 
             String methods = CommonUtils.readFileToString(methodsFilePath);
             String testData = CommonUtils.readFileToString(testDataFilePath);
@@ -215,23 +262,20 @@ public class LeetCodeUtils {
             }
 
             // play
-            Object lfu = null;
-            Constructor<?> constructor = lfuClass.getConstructor(int.class);
+            Constructor<?> constructor = cacheClass.getConstructor(int.class);
+            Object cache = constructor.newInstance(tdl.get(0)[0]);
 
-            for (int i = 0; i < methodsList.size() - 1; i++) {
+            for (int i = 1; i < methodsList.size() - 1; i++) {
 
                 try {
                     switch (methodsList.get(i)) {
-                        case "LFUCache":
-                            lfu = constructor.newInstance(tdl.get(i)[0]);
-                            break;
                         case "put":
-                            Method putMethod = lfu.getClass().getDeclaredMethod("put", int.class, int.class);
-                            putMethod.invoke(lfu, tdl.get(i)[0], tdl.get(i)[1]);
+                            Method putMethod = cache.getClass().getDeclaredMethod("put", int.class, int.class);
+                            putMethod.invoke(cache, tdl.get(i)[0], tdl.get(i)[1]);
                             break;
                         case "get":
-                            Method getMethod = lfu.getClass().getDeclaredMethod("get", int.class);
-                            getMethod.invoke(lfu, tdl.get(i)[0]);
+                            Method getMethod = cache.getClass().getDeclaredMethod("get", int.class);
+                            getMethod.invoke(cache, tdl.get(i)[0]);
                             break;
                         default:
                             throw new RuntimeException("Unknown method");
@@ -245,64 +289,66 @@ public class LeetCodeUtils {
             }
         }
     }
-}
-
-/**
- * Common private helper methods are not relevant to leetcode problems.
- */
-class CommonUtils {
 
     /**
-     * Reading a file into a String
-     * @param filePath - Path to file
-     * @return - File content
+     * Common private helper methods are not relevant to leetcode problems.
      */
-    public static String readFileToString(String filePath) {
+    static class CommonUtils {
 
-        ClassLoader classLoader = LeetCodeUtils.LFUCacheTestCasePlayer.class.getClassLoader();
-        StringBuilder sb = new StringBuilder();
+        /**
+         * Reading a file into a String
+         *
+         * @param filePath - Path to file
+         * @return - File content
+         */
+        public static String readFileToString(String filePath) {
 
-        try (InputStream inputStream = classLoader.getResourceAsStream(filePath);
-             InputStreamReader streamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
-             BufferedReader reader = new BufferedReader(streamReader)) {
+            ClassLoader classLoader = LeetCodeUtils.CacheTestCasePlayer.class.getClassLoader();
+            StringBuilder sb = new StringBuilder();
 
-            String line;
-            String ls = System.getProperty("line.separator");
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-                sb.append(ls);
+            try (InputStream inputStream = classLoader.getResourceAsStream(filePath);
+                 InputStreamReader streamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+                 BufferedReader reader = new BufferedReader(streamReader)) {
+
+                String line;
+                String ls = System.getProperty("line.separator");
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line);
+                    sb.append(ls);
+                }
+
+                sb.deleteCharAt(sb.length() - 1);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
 
-            sb.deleteCharAt(sb.length() - 1);
-        } catch (IOException e) {
-            e.printStackTrace();
+            return sb.toString();
         }
 
-        return sb.toString();
-    }
+        /**
+         * Gets an array of integers from its serialized representation.
+         * Ex: [2,1,3,null,4,null,7] -> Integer[]
+         *
+         * @param strArr - String representation of an array
+         * @return - integer array
+         */
+        public static Integer[] arrayFromString(String strArr) {
 
-    /**
-     * Gets an array of integers from its serialized representation.
-     * Ex: [2,1,3,null,4,null,7] -> Integer[]
-     * @param strArr - String representation of an array
-     * @return - integer array
-     */
-    public static Integer[] arrayFromString(String strArr) {
+            List<Integer> integerList = new ArrayList<>();
 
-        List<Integer> integerList = new ArrayList<>();
+            var a = strArr.substring(1, strArr.length() - 1).split(",");
 
-        var a = strArr.substring(1, strArr.length() - 1).split(",");
+            if (a.length == 1 && (a[0].equals("") || a[0].matches("\\s+"))) return new Integer[]{};
 
-        if (a.length == 1 && (a[0].equals("") || a[0].matches("\\s+"))) return new Integer[]{};
-
-        for (String num : a) {
-            if (num.equals("null")) {
-                integerList.add(null);
-            } else {
-                integerList.add(Integer.parseInt(num.trim()));
+            for (String num : a) {
+                if (num.equals("null")) {
+                    integerList.add(null);
+                } else {
+                    integerList.add(Integer.parseInt(num.trim()));
+                }
             }
-        }
 
-        return integerList.toArray(new Integer[0]);
+            return integerList.toArray(new Integer[0]);
+        }
     }
 }

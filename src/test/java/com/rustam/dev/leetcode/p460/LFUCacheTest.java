@@ -3,7 +3,9 @@ package com.rustam.dev.leetcode.p460;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 
-import static com.rustam.dev.leetcode.LeetCodeUtils.LFUCacheTestCasePlayer;
+import java.lang.reflect.InvocationTargetException;
+
+import static com.rustam.dev.leetcode.LeetCodeUtils.CacheTestCasePlayer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @DisplayName("Тестирование LFU-кэша")
@@ -112,8 +114,8 @@ public class LFUCacheTest {
 
     @Test
     @DisplayName("test case 17")
-    public void test_case_17() throws NoSuchMethodException {
+    public void test_case_17() throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
 
-        LFUCacheTestCasePlayer.playTestCase(LFUCache.class,"test-cases-data/p460/17/methods.txt", "test-cases-data/p460/17/data.txt");
+        CacheTestCasePlayer.playTestCase(LFUCache.class,"test-cases-data/p460/17/methods.txt", "test-cases-data/p460/17/data.txt");
     }
 }
