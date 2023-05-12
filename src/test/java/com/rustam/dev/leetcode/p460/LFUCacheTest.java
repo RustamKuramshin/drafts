@@ -114,8 +114,7 @@ public class LFUCacheTest {
 
     @Test
     @DisplayName("test case 17")
-    public void test_case_17() throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
-
+    public void test_case_17() {
         CacheTestCasePlayer.playTestCase(LFUCache.class,"test-cases-data/p460/17/methods.txt", "test-cases-data/p460/17/data.txt");
     }
 }
