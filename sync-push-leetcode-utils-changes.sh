@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# https://github.com/RustamKuramshin/leetcode-utils
+
 COPIED_PACKAGE_NAME="package com.rustam.dev.leetcode"
 NEW_PACKAGE_NAME="package leetcode.utils"
 
