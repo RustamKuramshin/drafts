@@ -6,6 +6,7 @@ import static com.rustam.dev.leetcode.LeetCodeUtils.TreeNode;
 public class Solution {
 
     public TreeNode searchBST(TreeNode root, int val) {
+        System.gc();
         if (root != null && val == root.val) {
             return root;
         } else if (root != null && val > root.val) {
