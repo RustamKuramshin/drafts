@@ -14,6 +14,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 /**
@@ -168,6 +169,177 @@ public class LeetCodeUtils {
         public static TreeNode ofArrayString(String treeAsStrArr) {
             Integer[] arr = CommonUtils.arrayFromString(treeAsStrArr);
             return array2btree(arr, 0);
+        }
+
+        public int size() {
+            return sizeRecursive(this);
+        }
+
+        private int sizeRecursive(TreeNode node) {
+            if (node == null) {
+                return 0;
+            }
+
+            int leftSize = sizeRecursive(node.left);
+            int rightSize = sizeRecursive(node.right);
+
+            return 1 + leftSize + rightSize;
+        }
+
+        //=============================================================================================================
+
+        public enum TreeNodeMode {
+            BINARY_SEARCH_TREE, SIMPLE_BINARY_TREE
+        }
+
+        public enum PredefinedNodePosition {
+            HIGH, MIDDLE, LOW
+        }
+
+        public static RandomBinaryTreeBuilder randomBinaryTreeBuilder() {
+            return new RandomBinaryTreeBuilder();
+        }
+
+        public static class RandomBinaryTreeBuilder {
+            private int maxNodesCount;
+            private int minNodeVal;
+            private int maxNodeVal;
+            private TreeNode predefinedNode;
+            private PredefinedNodePosition predefinedNodePosition;
+            private TreeNodeMode mode;
+
+            public RandomBinaryTreeBuilder maxNodesCount(int maxNodesCount) {
+                this.maxNodesCount = maxNodesCount;
+                return this;
+            }
+
+            public RandomBinaryTreeBuilder minNodeVal(int minNodeVal) {
+                this.minNodeVal = minNodeVal;
+                return this;
+            }
+
+            public RandomBinaryTreeBuilder maxNodeVal(int maxNodeVal) {
+                this.maxNodeVal = maxNodeVal;
+                return this;
+            }
+
+            public RandomBinaryTreeBuilder predefinedNode(TreeNode predefinedNode) {
+                this.predefinedNode = predefinedNode;
+                return this;
+            }
+
+            public RandomBinaryTreeBuilder predefinedNodePosition(PredefinedNodePosition predefinedNodePosition) {
+                this.predefinedNodePosition = predefinedNodePosition;
+                return this;
+            }
+
+            public RandomBinaryTreeBuilder mode(TreeNodeMode mode) {
+                this.mode = mode;
+                return this;
+            }
+
+            public TreeNode build() {
+                return generateRandomBinaryTree(maxNodesCount, minNodeVal, maxNodeVal, predefinedNode, mode, predefinedNodePosition);
+            }
+        }
+
+
+        private static TreeNode generateRandomBinaryTree(
+                int maxNodesCount,
+                int minNodeVal,
+                int maxNodeVal,
+                TreeNode predefinedNode,
+                TreeNodeMode mode,
+                PredefinedNodePosition predefinedNodePosition
+        ) {
+
+            if (maxNodesCount <= 0 || minNodeVal > maxNodeVal) {
+                throw new IllegalArgumentException("Invalid arguments");
+            }
+
+            Random random = new Random();
+            int nodeCount = random.nextInt(maxNodesCount) + 1;
+            int predefinedNodeLevel = -1;
+
+            if (predefinedNodePosition != null && predefinedNodePosition != PredefinedNodePosition.MIDDLE) {
+                if (predefinedNodePosition == PredefinedNodePosition.HIGH) {
+                    predefinedNodeLevel = random.nextInt(nodeCount + 1);
+                } else if (predefinedNodePosition == PredefinedNodePosition.LOW) {
+                    predefinedNodeLevel = random.nextInt(nodeCount + 1) + (maxNodesCount - nodeCount);
+                }
+            }
+
+            return generateRandomBinaryTreeHelper(nodeCount, minNodeVal, maxNodeVal, predefinedNode, mode, predefinedNodeLevel, 1);
+        }
+
+        private static TreeNode generateRandomBinaryTreeHelper(
+                int nodeCount,
+                int minNodeVal,
+                int maxNodeVal,
+                TreeNode predefinedNode,
+                TreeNodeMode mode,
+                int predefinedNodeLevel,
+                int currentLevel
+        ) {
+            if (currentLevel > nodeCount) {
+                return null;
+            }
+
+            Random random = new Random();
+            int randomVal = random.nextInt(maxNodeVal - minNodeVal + 1) + minNodeVal;
+
+            TreeNode node;
+            if (predefinedNode != null && currentLevel == predefinedNodeLevel) {
+                node = predefinedNode;
+            } else {
+                node = new TreeNode(randomVal);
+            }
+
+            if (mode == TreeNodeMode.BINARY_SEARCH_TREE && currentLevel > 1) {
+                insertIntoBST(node, predefinedNode, mode);
+            } else {
+                node.left = generateRandomBinaryTreeHelper(nodeCount, minNodeVal, maxNodeVal, predefinedNode, mode, predefinedNodeLevel, currentLevel * 2);
+                node.right = generateRandomBinaryTreeHelper(nodeCount, minNodeVal, maxNodeVal, predefinedNode, mode, predefinedNodeLevel, currentLevel * 2 + 1);
+            }
+
+            return node;
+        }
+
+        private static void insertIntoBST(TreeNode node, TreeNode predefinedNode, TreeNodeMode mode) {
+            if (node == null) {
+                return;
+            }
+
+            if (predefinedNode != null && predefinedNode.val < node.val) {
+                if (node.left == null) {
+                    node.left = predefinedNode;
+                } else {
+                    insertIntoBST(node.left, predefinedNode, mode);
+                }
+            } else {
+                if (node.right == null) {
+                    node.right = predefinedNode;
+                } else {
+                    insertIntoBST(node.right, predefinedNode, mode);
+                }
+            }
+        }
+
+        //=============================================================================================================
+
+        public void printBinaryTree() {
+            printBinaryTreeHelper(this, "", false);
+        }
+
+        private void printBinaryTreeHelper(TreeNode node, String prefix, boolean isLeft) {
+            if (node == null) {
+                return;
+            }
+
+            System.out.println(prefix + (isLeft ? "├── " : "└── ") + node.val);
+
+            printBinaryTreeHelper(node.left, prefix + (isLeft ? "│   " : "    "), true);
+            printBinaryTreeHelper(node.right, prefix + (isLeft ? "│   " : "    "), false);
         }
 
         /**
