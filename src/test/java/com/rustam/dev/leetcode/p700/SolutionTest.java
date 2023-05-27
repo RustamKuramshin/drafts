@@ -3,8 +3,9 @@ package com.rustam.dev.leetcode.p700;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 
+import java.util.Arrays;
+
 import static com.rustam.dev.leetcode.LeetCodeUtils.TreeNode;
-import static com.rustam.dev.leetcode.LeetCodeUtils.TreeNode.PredefinedNodePosition;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @DisplayName("Тестирования метода поиска в двоичном дереве поиска")
@@ -50,13 +51,22 @@ public class SolutionTest {
 
         // генерация случайного двоичного дерева TreeNode
         TreeNode tn = TreeNode.randomBinaryTreeBuilder()
-                .nodesCount(4_000)
-                .minNodeVal(-10_000)
-                .maxNodeVal(10_000)
+                .nodesCount(15)
+                .minNodeVal(-1000)
+                .maxNodeVal(1000)
+                .mode(TreeNode.TreeNodeMode.BINARY_SEARCH_TREE)
                 .build();
 
         System.out.printf("Tree size: %s\n", tn.size());
         System.out.println();
+
+        var a = TreeNode.btree2array(tn);
+        System.out.println(Arrays.toString(a));
+        System.out.println();
+
+        tn.addNode(new TreeNode(666));
+
+        System.out.printf("Tree size: %s\n", tn.size());
 
         // "Красивая" печать двоичного дерева
         tn.printBinaryTree();

@@ -205,8 +205,6 @@ public class LeetCodeUtils {
             private int nodesCount;
             private int minNodeVal;
             private int maxNodeVal;
-            private TreeNode predefinedNode;
-            private PredefinedNodePosition predefinedNodePosition;
             private TreeNodeMode mode;
 
             public RandomBinaryTreeBuilder nodesCount(int nodesCount) {
@@ -224,27 +222,17 @@ public class LeetCodeUtils {
                 return this;
             }
 
-            public RandomBinaryTreeBuilder predefinedNode(TreeNode predefinedNode) {
-                this.predefinedNode = predefinedNode;
-                return this;
-            }
-
-            public RandomBinaryTreeBuilder predefinedNodePosition(PredefinedNodePosition predefinedNodePosition) {
-                this.predefinedNodePosition = predefinedNodePosition;
-                return this;
-            }
-
             public RandomBinaryTreeBuilder mode(TreeNodeMode mode) {
                 this.mode = mode;
                 return this;
             }
 
             public TreeNode build() {
-                return generateRandomBinaryTree(nodesCount, minNodeVal, maxNodeVal, predefinedNode, predefinedNodePosition, mode);
+                return generateRandomBinaryTree(nodesCount, minNodeVal, maxNodeVal, mode);
             }
         }
 
-        public static TreeNode generateRandomBinaryTree(int nodesCount, int minNodeVal, int maxNodeVal, TreeNode predefinedNode, PredefinedNodePosition predefinedNodePosition, TreeNodeMode mode) {
+        public static TreeNode generateRandomBinaryTree(int nodesCount, int minNodeVal, int maxNodeVal, TreeNodeMode mode) {
             if (nodesCount <= 0) {
                 return null;
             }
@@ -256,25 +244,6 @@ public class LeetCodeUtils {
 
             // Определяем максимальное количество узлов, которые будут вставлены в дерево
             int maxInsertCount = nodesCount - 1;
-
-            // Вставляем предопределенный узел, если указан
-            if (predefinedNode != null) {
-                int position = 1; // Позиция предопределенного узла (начинается с 1, потому что корень уже создан)
-                int insertIndex = random.nextInt(maxInsertCount) + 1; // Генерируем случайную позицию вставки для предопределенного узла
-
-                // Вставляем предопределенный узел в зависимости от указанной позиции
-                if (predefinedNodePosition == PredefinedNodePosition.HIGH) {
-                    insertNode(root, predefinedNode, insertIndex, position);
-                } else if (predefinedNodePosition == PredefinedNodePosition.MIDDLE) {
-                    insertIndex = (maxInsertCount + 1) / 2; // Вставляем в середину дерева
-                    insertNode(root, predefinedNode, insertIndex, position);
-                } else if (predefinedNodePosition == PredefinedNodePosition.LOW) {
-                    insertIndex = maxInsertCount; // Вставляем в конец дерева
-                    insertNode(root, predefinedNode, insertIndex, position);
-                }
-
-                maxInsertCount--; // Уменьшаем максимальное количество узлов, которые будут вставлены в дерево
-            }
 
             // Вставляем остальные узлы
             for (int i = 0; i < maxInsertCount; i++) {
@@ -315,26 +284,6 @@ public class LeetCodeUtils {
                     queue.offer(currNode.right);
                 }
             }
-        }
-
-        // Вспомогательный метод для вставки предопределенного узла на заданную позицию
-        private static void insertNode(TreeNode root, TreeNode node, int insertIndex, int currentPosition) {
-            if (root == null || node == null || currentPosition > insertIndex) {
-                return;
-            }
-
-            if (currentPosition == insertIndex) {
-                // Вставляем узел на текущую позицию
-                if (root.left == null) {
-                    root.left = node;
-                } else if (root.right == null) {
-                    root.right = node;
-                }
-                return;
-            }
-
-            insertNode(root.left, node, insertIndex, currentPosition + 1);
-            insertNode(root.right, node, insertIndex, currentPosition + 1);
         }
 
         // Метод для преобразования дерева в двоичное дерево поиска
@@ -386,6 +335,32 @@ public class LeetCodeUtils {
 
             printBinaryTreeHelper(node.left, prefix + (isLeft ? "│   " : "    "), true);
             printBinaryTreeHelper(node.right, prefix + (isLeft ? "│   " : "    "), false);
+        }
+
+        //=============================================================================================================
+
+        public void addNode(TreeNode node) {
+            if (node == null) {
+                return;
+            }
+
+            if (this.equals(node)) {
+                return; // Узел уже присутствует в дереве, прекращаем вставку
+            }
+
+            if (node.val < this.val) {
+                if (left != null) {
+                    left.addNode(node); // Рекурсивно вставляем в левое поддерево
+                } else {
+                    left = node; // Вставляем узел как левого ребенка
+                }
+            } else if (node.val > this.val) {
+                if (right != null) {
+                    right.addNode(node); // Рекурсивно вставляем в правое поддерево
+                } else {
+                    right = node; // Вставляем узел как правого ребенка
+                }
+            }
         }
 
         /**
