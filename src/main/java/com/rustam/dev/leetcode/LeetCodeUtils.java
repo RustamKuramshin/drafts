@@ -10,6 +10,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -201,15 +202,15 @@ public class LeetCodeUtils {
         }
 
         public static class RandomBinaryTreeBuilder {
-            private int maxNodesCount;
+            private int nodesCount;
             private int minNodeVal;
             private int maxNodeVal;
             private TreeNode predefinedNode;
             private PredefinedNodePosition predefinedNodePosition;
             private TreeNodeMode mode;
 
-            public RandomBinaryTreeBuilder maxNodesCount(int maxNodesCount) {
-                this.maxNodesCount = maxNodesCount;
+            public RandomBinaryTreeBuilder nodesCount(int maxNodesCount) {
+                this.nodesCount = maxNodesCount;
                 return this;
             }
 
@@ -239,91 +240,136 @@ public class LeetCodeUtils {
             }
 
             public TreeNode build() {
-                return generateRandomBinaryTree(maxNodesCount, minNodeVal, maxNodeVal, predefinedNode, mode, predefinedNodePosition);
+                return generateRandomBinaryTree(nodesCount, minNodeVal, maxNodeVal, predefinedNode, predefinedNodePosition, mode);
             }
         }
 
-
-        private static TreeNode generateRandomBinaryTree(
-                int maxNodesCount,
-                int minNodeVal,
-                int maxNodeVal,
-                TreeNode predefinedNode,
-                TreeNodeMode mode,
-                PredefinedNodePosition predefinedNodePosition
-        ) {
-
-            if (maxNodesCount <= 0 || minNodeVal > maxNodeVal) {
-                throw new IllegalArgumentException("Invalid arguments");
-            }
-
-            Random random = new Random();
-            int nodeCount = random.nextInt(maxNodesCount) + 1;
-            int predefinedNodeLevel = -1;
-
-            if (predefinedNodePosition != null && predefinedNodePosition != PredefinedNodePosition.MIDDLE) {
-                if (predefinedNodePosition == PredefinedNodePosition.HIGH) {
-                    predefinedNodeLevel = random.nextInt(nodeCount + 1);
-                } else if (predefinedNodePosition == PredefinedNodePosition.LOW) {
-                    predefinedNodeLevel = random.nextInt(nodeCount + 1) + (maxNodesCount - nodeCount);
-                }
-            }
-
-            return generateRandomBinaryTreeHelper(nodeCount, minNodeVal, maxNodeVal, predefinedNode, mode, predefinedNodeLevel, 1);
-        }
-
-        private static TreeNode generateRandomBinaryTreeHelper(
-                int nodeCount,
-                int minNodeVal,
-                int maxNodeVal,
-                TreeNode predefinedNode,
-                TreeNodeMode mode,
-                int predefinedNodeLevel,
-                int currentLevel
-        ) {
-            if (currentLevel > nodeCount) {
+        public static TreeNode generateRandomBinaryTree(int nodesCount, int minNodeVal, int maxNodeVal, TreeNode predefinedNode, PredefinedNodePosition predefinedNodePosition, TreeNodeMode mode) {
+            if (nodesCount <= 0) {
                 return null;
             }
 
             Random random = new Random();
-            int randomVal = random.nextInt(maxNodeVal - minNodeVal + 1) + minNodeVal;
 
-            TreeNode node;
-            if (predefinedNode != null && currentLevel == predefinedNodeLevel) {
-                node = predefinedNode;
-            } else {
-                node = new TreeNode(randomVal);
+            // Создаем корневой узел
+            TreeNode root = new TreeNode(random.nextInt(maxNodeVal - minNodeVal + 1) + minNodeVal);
+
+            // Определяем максимальное количество узлов, которые будут вставлены в дерево
+            int maxInsertCount = nodesCount - 1;
+
+            // Вставляем предопределенный узел, если указан
+            if (predefinedNode != null) {
+                int position = 1; // Позиция предопределенного узла (начинается с 1, потому что корень уже создан)
+                int insertIndex = random.nextInt(maxInsertCount) + 1; // Генерируем случайную позицию вставки для предопределенного узла
+
+                // Вставляем предопределенный узел в зависимости от указанной позиции
+                if (predefinedNodePosition == PredefinedNodePosition.HIGH) {
+                    insertNode(root, predefinedNode, insertIndex, position);
+                } else if (predefinedNodePosition == PredefinedNodePosition.MIDDLE) {
+                    insertIndex = (maxInsertCount + 1) / 2; // Вставляем в середину дерева
+                    insertNode(root, predefinedNode, insertIndex, position);
+                } else if (predefinedNodePosition == PredefinedNodePosition.LOW) {
+                    insertIndex = maxInsertCount; // Вставляем в конец дерева
+                    insertNode(root, predefinedNode, insertIndex, position);
+                }
+
+                maxInsertCount--; // Уменьшаем максимальное количество узлов, которые будут вставлены в дерево
             }
 
-            if (mode == TreeNodeMode.BINARY_SEARCH_TREE && currentLevel > 1) {
-                insertIntoBST(node, predefinedNode, mode);
-            } else {
-                node.left = generateRandomBinaryTreeHelper(nodeCount, minNodeVal, maxNodeVal, predefinedNode, mode, predefinedNodeLevel, currentLevel * 2);
-                node.right = generateRandomBinaryTreeHelper(nodeCount, minNodeVal, maxNodeVal, predefinedNode, mode, predefinedNodeLevel, currentLevel * 2 + 1);
+            // Вставляем остальные узлы
+            for (int i = 0; i < maxInsertCount; i++) {
+                insertNode(root, new TreeNode(random.nextInt(maxNodeVal - minNodeVal + 1) + minNodeVal));
             }
 
-            return node;
+            // Если указан режим BINARY_SEARCH_TREE, преобразуем дерево в двоичное дерево поиска
+            if (mode == TreeNodeMode.BINARY_SEARCH_TREE) {
+                convertToBinarySearchTree(root);
+            }
+
+            return root;
         }
 
-        private static void insertIntoBST(TreeNode node, TreeNode predefinedNode, TreeNodeMode mode) {
-            if (node == null) {
+        // Вспомогательный метод для вставки узла в дерево
+        private static void insertNode(TreeNode root, TreeNode node) {
+            if (root == null || node == null) {
                 return;
             }
 
-            if (predefinedNode != null && predefinedNode.val < node.val) {
-                if (node.left == null) {
-                    node.left = predefinedNode;
+            Queue<TreeNode> queue = new LinkedList<>();
+            queue.offer(root);
+
+            while (!queue.isEmpty()) {
+                TreeNode currNode = queue.poll();
+
+                if (currNode.left == null) {
+                    currNode.left = node;
+                    break;
                 } else {
-                    insertIntoBST(node.left, predefinedNode, mode);
+                    queue.offer(currNode.left);
                 }
-            } else {
-                if (node.right == null) {
-                    node.right = predefinedNode;
+
+                if (currNode.right == null) {
+                    currNode.right = node;
+                    break;
                 } else {
-                    insertIntoBST(node.right, predefinedNode, mode);
+                    queue.offer(currNode.right);
                 }
             }
         }
+
+        // Вспомогательный метод для вставки предопределенного узла на заданную позицию
+        private static void insertNode(TreeNode root, TreeNode node, int insertIndex, int currentPosition) {
+            if (root == null || node == null || currentPosition > insertIndex) {
+                return;
+            }
+
+            if (currentPosition == insertIndex) {
+                // Вставляем узел на текущую позицию
+                if (root.left == null) {
+                    root.left = node;
+                } else if (root.right == null) {
+                    root.right = node;
+                }
+                return;
+            }
+
+            insertNode(root.left, node, insertIndex, currentPosition + 1);
+            insertNode(root.right, node, insertIndex, currentPosition + 1);
+        }
+
+        // Метод для преобразования дерева в двоичное дерево поиска
+        private static void convertToBinarySearchTree(TreeNode root) {
+            List<Integer> values = new ArrayList<>();
+            inorderTraversal(root, values);
+            Collections.sort(values); // Сортируем значения узлов
+            rebuildTree(root, values);
+        }
+
+        // Обход дерева в порядке "inorder" и сохранение значений в список
+        private static void inorderTraversal(TreeNode root, List<Integer> values) {
+            if (root == null) {
+                return;
+            }
+
+            inorderTraversal(root.left, values);
+            values.add(root.val);
+            inorderTraversal(root.right, values);
+        }
+
+        // Перестроение дерева с использованием отсортированных значений
+        private static void rebuildTree(TreeNode root, List<Integer> values) {
+            if (root == null || values.isEmpty()) {
+                return;
+            }
+
+            rebuildTree(root.left, values);
+
+            // Заменяем значения узлов на отсортированные
+            root.val = values.remove(0);
+
+            rebuildTree(root.right, values);
+        }
+
 
         //=============================================================================================================
 

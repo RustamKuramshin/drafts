@@ -50,7 +50,7 @@ public class SolutionTest {
 
         // генерация случайного двоичного дерева TreeNode
         TreeNode tn = TreeNode.randomBinaryTreeBuilder()
-                .maxNodesCount(5_000)
+                .nodesCount(4_000)
                 .minNodeVal(-10_000)
                 .maxNodeVal(10_000)
                 .build();
