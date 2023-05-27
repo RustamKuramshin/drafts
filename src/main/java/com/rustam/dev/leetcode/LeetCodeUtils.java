@@ -209,8 +209,8 @@ public class LeetCodeUtils {
             private PredefinedNodePosition predefinedNodePosition;
             private TreeNodeMode mode;
 
-            public RandomBinaryTreeBuilder nodesCount(int maxNodesCount) {
-                this.nodesCount = maxNodesCount;
+            public RandomBinaryTreeBuilder nodesCount(int nodesCount) {
+                this.nodesCount = nodesCount;
                 return this;
             }
 
