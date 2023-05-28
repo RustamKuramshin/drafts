@@ -44,7 +44,6 @@ public class LeetCodeUtils {
 
         public ListNode(int x) {
             val = x;
-            next = null;
         }
 
         public ListNode(int val, ListNode next) {
@@ -158,10 +157,16 @@ public class LeetCodeUtils {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             TreeNode treeNode = (TreeNode) o;
-            return val == treeNode.val && Objects.equals(left, treeNode.left) && Objects.equals(right, treeNode.right);
+            return val == treeNode.val &&
+                    Objects.equals(left, treeNode.left) &&
+                    Objects.equals(right, treeNode.right);
         }
 
         @Override
@@ -171,7 +176,6 @@ public class LeetCodeUtils {
 
         /**
          * Constructor that allows you to create a binary tree from a standard array representation: [2,1,3,null,4,null,7].
-         *
          * @param treeAsStrArr
          * @return
          */
@@ -180,6 +184,10 @@ public class LeetCodeUtils {
             return array2btree(arr, 0);
         }
 
+        /**
+         * The method returns the number of nodes of the binary tree
+         * @return
+         */
         public int size() {
             return sizeRecursive(this);
         }
@@ -195,16 +203,22 @@ public class LeetCodeUtils {
             return 1 + leftSize + rightSize;
         }
 
-        //=============================================================================================================
-
-        public enum TreeNodeMode {
-            BINARY_SEARCH_TREE, SIMPLE_BINARY_TREE
-        }
-
+        /**
+         * Initialization method of the random binary tree generator builder
+         * @return
+         */
         public static RandomBinaryTreeBuilder randomBinaryTreeBuilder() {
             return new RandomBinaryTreeBuilder();
         }
 
+        /**
+         * Random Binary Tree Generator Builder
+         * @method nodesCount() - Required number of binary tree nodes
+         * @method minNodeVal() - The minimum possible value of a binary tree node
+         * @method maxNodeVal() - The maximum possible value of a binary tree node
+         * @method mode() - Generation mode. Either a simple binary tree (SIMPLE_BINARY_TREE)
+         * or a binary search tree (BINARY_SEARCH_TREE) will be generated
+         */
         public static class RandomBinaryTreeBuilder {
             private int nodesCount;
             private int minNodeVal;
@@ -241,25 +255,33 @@ public class LeetCodeUtils {
             }
         }
 
-        public static TreeNode generateRandomBinaryTree(int nodesCount, int minNodeVal, int maxNodeVal, TreeNodeMode mode) {
+        /**
+         * Generation mode. Either a simple binary tree (SIMPLE_BINARY_TREE)
+         * or a binary search tree (BINARY_SEARCH_TREE) will be generated
+         */
+        public enum TreeNodeMode {
+            BINARY_SEARCH_TREE, SIMPLE_BINARY_TREE
+        }
+
+        private static TreeNode generateRandomBinaryTree(int nodesCount, int minNodeVal, int maxNodeVal, TreeNodeMode mode) {
             if (nodesCount <= 0) {
                 return null;
             }
 
             Random random = new Random();
 
-            // Создаем корневой узел
+            // Creating a root node
             TreeNode root = new TreeNode(random.nextInt(maxNodeVal - minNodeVal + 1) + minNodeVal);
 
-            // Определяем максимальное количество узлов, которые будут вставлены в дерево
+            // We determine the maximum number of nodes that will be inserted into the tree
             int maxInsertCount = nodesCount - 1;
 
-            // Вставляем остальные узлы
+            // Insert the remaining nodes
             for (int i = 0; i < maxInsertCount; i++) {
                 insertNode(root, new TreeNode(random.nextInt(maxNodeVal - minNodeVal + 1) + minNodeVal));
             }
 
-            // Если указан режим BINARY_SEARCH_TREE, преобразуем дерево в двоичное дерево поиска
+            // If BINARY_SEARCH_TREE mode is specified, convert the tree to a binary search tree
             if (mode == TreeNodeMode.BINARY_SEARCH_TREE) {
                 convertToBinarySearchTree(root);
             }
@@ -267,7 +289,7 @@ public class LeetCodeUtils {
             return root;
         }
 
-        // Вспомогательный метод для вставки узла в дерево
+        // Auxiliary method for inserting a node into a tree
         private static void insertNode(TreeNode root, TreeNode node) {
             if (root == null || node == null) {
                 return;
@@ -295,15 +317,15 @@ public class LeetCodeUtils {
             }
         }
 
-        // Метод для преобразования дерева в двоичное дерево поиска
+        // Method for converting a tree to a binary search tree
         private static void convertToBinarySearchTree(TreeNode root) {
             List<Integer> values = new ArrayList<>();
             inorderTraversal(root, values);
-            Collections.sort(values); // Сортируем значения узлов
+            Collections.sort(values); // Sorting node values
             rebuildTree(root, values);
         }
 
-        // Обход дерева в порядке "inorder" и сохранение значений в список
+        // Traversing the tree in the "inorder" order and saving values to a list
         private static void inorderTraversal(TreeNode root, List<Integer> values) {
             if (root == null) {
                 return;
@@ -314,23 +336,20 @@ public class LeetCodeUtils {
             inorderTraversal(root.right, values);
         }
 
-        // Перестроение дерева с использованием отсортированных значений
+        // Rebuilding the tree using sorted values
         private static void rebuildTree(TreeNode root, List<Integer> values) {
             if (root == null || values.isEmpty()) {
                 return;
             }
-
             rebuildTree(root.left, values);
-
-            // Заменяем значения узлов на отсортированные
+            // Replacing node values with sorted ones
             root.val = values.remove(0);
-
             rebuildTree(root.right, values);
         }
 
-
-        //=============================================================================================================
-
+        /**
+         * The method prints a binary tree beautifully
+         */
         public void printBinaryTree() {
             printBinaryTreeHelper(this, "", false);
         }
@@ -339,35 +358,35 @@ public class LeetCodeUtils {
             if (node == null) {
                 return;
             }
-
             System.out.println(prefix + (isLeft ? "├── " : "└── ") + node.val);
-
             printBinaryTreeHelper(node.left, prefix + (isLeft ? "│   " : "    "), true);
             printBinaryTreeHelper(node.right, prefix + (isLeft ? "│   " : "    "), false);
         }
 
-        //=============================================================================================================
-
+        /**
+         * The method allows you to add a new node to the binary search tree
+         * @param node
+         */
         public void addNode(TreeNode node) {
             if (node == null) {
                 return;
             }
 
             if (this.equals(node)) {
-                return; // Узел уже присутствует в дереве, прекращаем вставку
+                return; // The node is already present in the tree, stop inserting
             }
 
             if (node.val < this.val) {
                 if (left != null) {
-                    left.addNode(node); // Рекурсивно вставляем в левое поддерево
+                    left.addNode(node); // Recursively insert into the left subtree
                 } else {
-                    left = node; // Вставляем узел как левого ребенка
+                    left = node; // Inserting the node as the left child
                 }
             } else if (node.val > this.val) {
                 if (right != null) {
-                    right.addNode(node); // Рекурсивно вставляем в правое поддерево
+                    right.addNode(node); // Recursively insert into the right subtree
                 } else {
-                    right = node; // Вставляем узел как правого ребенка
+                    right = node; // Inserting the node as the right child
                 }
             }
         }
@@ -479,13 +498,13 @@ public class LeetCodeUtils {
             }
 
             // play
-            Constructor<?> constructor = null;
+            Constructor<?> constructor;
             try {
                 constructor = cacheClass.getConstructor(int.class);
             } catch (NoSuchMethodException e) {
                 throw new RuntimeException(e);
             }
-            Object cache = null;
+            Object cache;
             try {
                 cache = constructor.newInstance(tdl.get(0)[0]);
             } catch (InstantiationException e) {
