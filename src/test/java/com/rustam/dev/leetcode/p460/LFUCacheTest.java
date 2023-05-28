@@ -1,9 +1,8 @@
 package com.rustam.dev.leetcode.p460;
 
+import com.rustam.dev.leetcode.node.p460.LFUCache;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
-
-import java.lang.reflect.InvocationTargetException;
 
 import static com.rustam.dev.leetcode.LeetCodeUtils.CacheTestCasePlayer;
 import static org.junit.jupiter.api.Assertions.assertEquals;

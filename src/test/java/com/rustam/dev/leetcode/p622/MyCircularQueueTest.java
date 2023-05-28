@@ -1,6 +1,7 @@
 package com.rustam.dev.leetcode.p622;
 
-import com.rustam.dev.leetcode.p622.array.MyCircularQueue;
+import com.rustam.dev.leetcode.node.p622.IMyCircularQueue;
+import com.rustam.dev.leetcode.node.p622.linkedlist.MyCircularQueue;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 
@@ -19,9 +20,9 @@ public class MyCircularQueueTest {
 
         public static IMyCircularQueue getMyCircularQueue(QueueType type, int initSize) {
             if (type == QueueType.ARRAY) {
-                return new MyCircularQueue(initSize);
+                return new com.rustam.dev.leetcode.node.p622.array.MyCircularQueue(initSize);
             } else if (type == QueueType.NODE) {
-                return new com.rustam.dev.leetcode.p622.linkedlist.MyCircularQueue(initSize);
+                return new MyCircularQueue(initSize);
             }
             return null;
         }

@@ -11,11 +11,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Random;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -37,9 +39,6 @@ public class LeetCodeUtils {
         public int val;
         public ListNode next;
 
-        // Sign that a node is a tail in a looped linked list
-        public boolean isTail;
-
         public ListNode() {
         }
 
@@ -53,29 +52,38 @@ public class LeetCodeUtils {
             this.next = next;
         }
 
-        public ListNode(int x, boolean isTail) {
-            this(x);
-            this.isTail = isTail;
-        }
-
         /**
          * Printing a singly linked list with circularity in mind
          */
         public void printListNode() {
+
+            Set<ListNode> visited = new HashSet<>();
+            ListNode node = this;
+
             StringBuilder res = new StringBuilder();
             res.append("[");
+            boolean isCyclic = false;
 
-            ListNode node = this;
-            do {
+            while (node != null) {
+                if (visited.contains(node)) {
+                    isCyclic = true;
+                    break;
+                }
+
+                visited.add(node);
                 res.append(node.val);
-                node = node.next;
-                if (node != null) res.append(", ");
-            } while (node != null && !node.isTail);
+                if (node.next != null) {
+                    res.append(" -> ");
+                }
 
-            if (node != null) res.append(node.val);
+                node = node.next;
+            }
+
+            if (isCyclic) {
+                res.append("...");
+            }
 
             res.append("]");
-
             System.out.println(res);
         }
     }

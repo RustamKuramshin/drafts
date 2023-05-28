@@ -1,6 +1,7 @@
 package com.rustam.dev.leetcode.p146;
 
 import com.rustam.dev.leetcode.LeetCodeUtils;
+import com.rustam.dev.leetcode.node.p146.LRUCache;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 

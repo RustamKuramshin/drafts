@@ -1,5 +1,6 @@
 package com.rustam.dev.leetcode.p099;
 
+import com.rustam.dev.leetcode.treenode.p099.Solution;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 
