@@ -201,10 +201,6 @@ public class LeetCodeUtils {
             BINARY_SEARCH_TREE, SIMPLE_BINARY_TREE
         }
 
-        public enum PredefinedNodePosition {
-            HIGH, MIDDLE, LOW
-        }
-
         public static RandomBinaryTreeBuilder randomBinaryTreeBuilder() {
             return new RandomBinaryTreeBuilder();
         }
