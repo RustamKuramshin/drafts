@@ -398,7 +398,7 @@ public class LeetCodeUtils {
          * @param i
          * @return
          */
-        public static TreeNode array2btree(Integer[] arr, int i) {
+        private static TreeNode array2btree(Integer[] arr, int i) {
             TreeNode treeNode = null;
 
             if (i < arr.length) {
@@ -420,7 +420,7 @@ public class LeetCodeUtils {
          * @param root
          * @return
          */
-        public static Integer[] btree2array(TreeNode root) {
+        private static Integer[] btree2array(TreeNode root) {
             if (root == null) {
                 return new Integer[0];
             }
@@ -543,7 +543,7 @@ public class LeetCodeUtils {
     /**
      * Common private helper methods are not relevant to leetcode problems.
      */
-    public static class CommonUtils {
+    private static class CommonUtils {
 
         /**
          * Reading a file into a String
