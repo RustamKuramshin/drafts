@@ -3,9 +3,8 @@ package com.rustam.dev.leetcode.p700;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 
-import java.util.Arrays;
-
 import static com.rustam.dev.leetcode.LeetCodeUtils.TreeNode;
+import static com.rustam.dev.leetcode.LeetCodeUtils.TreeNode.TreeNodeMode;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @DisplayName("Тестирования метода поиска в двоичном дереве поиска")
@@ -46,29 +45,24 @@ public class SolutionTest {
     }
 
     @Test
-    @DisplayName("test generate random binary tree")
-    public void test_generate_random_binary_tree() {
-
-        // генерация случайного двоичного дерева TreeNode
-        TreeNode tn = TreeNode.randomBinaryTreeBuilder()
-                .nodesCount(15)
-                .minNodeVal(-1000)
-                .maxNodeVal(1000)
-                .mode(TreeNode.TreeNodeMode.BINARY_SEARCH_TREE)
+    @DisplayName("test System.gc() call")
+    public void test_system_gc_call() {
+        // arrange
+        TreeNode root = TreeNode.randomBinaryTreeBuilder()
+                .nodesCount(5000)
+                .minNodeVal(-10_000)
+                .maxNodeVal(10_000)
+                .mode(TreeNodeMode.BINARY_SEARCH_TREE)
                 .build();
+        int val = 11_000;
+        int expectedVal = 11_000;
+        root.addNode(new TreeNode(val));
 
-        System.out.printf("Tree size: %s\n", tn.size());
-        System.out.println();
+        // act
+        Solution s = new Solution();
+        TreeNode actual = s.searchBST(root, val);
 
-        var a = TreeNode.btree2array(tn);
-        System.out.println(Arrays.toString(a));
-        System.out.println();
-
-        tn.addNode(new TreeNode(666));
-
-        System.out.printf("Tree size: %s\n", tn.size());
-
-        // "Красивая" печать двоичного дерева
-        tn.printBinaryTree();
+        // assert
+        assertEquals(expectedVal, actual.val);
     }
 }

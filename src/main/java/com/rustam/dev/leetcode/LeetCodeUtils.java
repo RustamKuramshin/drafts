@@ -228,6 +228,11 @@ public class LeetCodeUtils {
             }
 
             public TreeNode build() {
+                if (mode == null) throw new IllegalStateException("Specify the mode (mode) of binary tree generation: simple binary tree or binary search tree.\n" +
+                        "For example: \n" +
+                        ".mode(TreeNodeMode.BINARY_SEARCH_TREE)\n" +
+                        "or\n" +
+                        ".mode(TreeNodeMode.SIMPLE_BINARY_TREE)");
                 return generateRandomBinaryTree(nodesCount, minNodeVal, maxNodeVal, mode);
             }
         }
