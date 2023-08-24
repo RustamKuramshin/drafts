@@ -1,5 +1,7 @@
 package com.rustam.dev;
 
+import java.time.Instant;
+
 public class FooBar {
     private int n;
     private boolean fooTurn = true;
@@ -17,6 +19,7 @@ public class FooBar {
             printFoo.run();
             fooTurn = false;
             notifyAll();
+            Thread.sleep(1000); // Задержка в 1 секунду
         }
     }
 
@@ -29,15 +32,16 @@ public class FooBar {
             printBar.run();
             fooTurn = true;
             notifyAll();
+            Thread.sleep(500); // Задержка в полсекунды
         }
     }
 
     public static void main(String[] args) {
-        FooBar fooBar = new FooBar(500);
+        FooBar fooBar = new FooBar(50);
 
         Thread t1 = new Thread(() -> {
             try {
-                fooBar.foo(() -> System.out.println("foo"));
+                fooBar.foo(() -> System.out.println("foo " + Instant.now()));
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -45,7 +49,7 @@ public class FooBar {
 
         Thread t2 = new Thread(() -> {
             try {
-                fooBar.bar(() -> System.out.println("bar"));
+                fooBar.bar(() -> System.out.println("bar " + Instant.now()));
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -55,4 +59,5 @@ public class FooBar {
         t2.start();
     }
 }
+
 
