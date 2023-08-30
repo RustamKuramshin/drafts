@@ -8,10 +8,10 @@ public class RoomsVisiter {
         if (rooms == null || rooms.length == 0) return false;
 
         int n = rooms.length;
-        boolean[] visited = new boolean[n];  // массив для отслеживания посещенных комнат
-        Stack<Integer> stack = new Stack<>();  // стек для ключей/дверей
+        boolean[] visited = new boolean[n];
+        Stack<Integer> stack = new Stack<>();
 
-        stack.push(0);  // начинаем с двери 0
+        stack.push(0);
 
         while (!stack.isEmpty()) {
             int currentRoom = stack.pop();
@@ -23,7 +23,6 @@ public class RoomsVisiter {
             }
         }
 
-        // Проверка, были ли все комнаты посещены
         for (boolean v : visited) {
             if (!v) return false;
         }
