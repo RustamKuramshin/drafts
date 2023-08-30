@@ -1,4 +1,4 @@
-package com.rustam.dev;
+package com.rustam.dev.concurrency;
 
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;

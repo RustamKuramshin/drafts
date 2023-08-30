@@ -1,4 +1,4 @@
-package com.rustam.dev;
+package com.rustam.dev.concurrency;
 
 public class DoubleCheckedLockingSingleton {
     private static volatile DoubleCheckedLockingSingleton instance;

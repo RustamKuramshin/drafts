@@ -1,4 +1,4 @@
-package com.rustam.dev;
+package com.rustam.dev.concurrency;
 
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveTask;
