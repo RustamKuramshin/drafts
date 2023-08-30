@@ -2,6 +2,13 @@ package com.rustam.dev.tinkoff;
 
 import java.util.Stack;
 
+/**
+ * Есть двери пронумерованные от 0 до N-1.
+ * За каждой дверью находятся пронумерованные ключи, которые открывают другие двери.
+ * В самом начале открыта только дверь с номером 0.
+ * Нужно по входящему двумерному массиву понять сможем ли мы посетить все комнаты или нет.
+ * В ответ вернуть true или false.
+ */
 public class RoomsVisiter {
 
     private static boolean canVisitAllRooms(int[][] rooms) {

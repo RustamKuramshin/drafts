@@ -3,6 +3,10 @@ package com.rustam.dev.tinkoff;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Реализовать дополнительный метод для HashMap boolean isAllUnique(),
+ * который показывает есть ли дублирующиеся values, в HashMap
+ */
 public class MapWithAllUnique<K, V> {
 
     private Map<K, V> store;
