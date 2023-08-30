@@ -1,4 +1,4 @@
-package com.rustam.dev;
+package com.rustam.dev.tinkoff;
 
 import java.util.HashMap;
 import java.util.Map;
