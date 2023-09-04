@@ -25,6 +25,7 @@ public class FindSingle {
             }
             if (!hasPair) return nums[i];
         }
+
         throw new IllegalArgumentException("Непарный элемент не найден");
     }
 
