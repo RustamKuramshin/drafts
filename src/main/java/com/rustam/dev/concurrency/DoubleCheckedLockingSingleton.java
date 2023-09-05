@@ -2,7 +2,10 @@ package com.rustam.dev.concurrency;
 
 public class DoubleCheckedLockingSingleton {
     private static volatile DoubleCheckedLockingSingleton instance;
-    private DoubleCheckedLockingSingleton() {}
+
+    private DoubleCheckedLockingSingleton() {
+
+    }
 
     public static DoubleCheckedLockingSingleton getInstance() {
         if (instance == null) {
