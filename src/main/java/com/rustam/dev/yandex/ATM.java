@@ -18,6 +18,7 @@ public class ATM {
     }
 
     public Map<Banknotes, Integer> withdrawal(int sum) throws CashWithdrawalException {
+
         if (getBalanceValue() < sum) throw new CashWithdrawalException();
 
         int sumVal = sum;
