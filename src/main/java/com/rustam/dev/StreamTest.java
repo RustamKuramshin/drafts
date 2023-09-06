@@ -2,7 +2,6 @@ package com.rustam.dev;
 
 import java.util.ArrayList;
 import java.util.Random;
-import java.util.stream.Collectors;
 
 public class StreamTest {
 
@@ -20,7 +19,7 @@ public class StreamTest {
         var filteredList = integerList.stream()
                 .map(i -> i * 3)
                 .filter(i -> i > 0)
-                .collect(Collectors.toList());
+                .toList();
 
         System.out.println("Выполнение заняло нс: " + (System.nanoTime() - startTime));
 
