@@ -63,3 +63,20 @@ public class ATM {
         System.out.println(atm.withdrawal(900));
     }
 }
+
+enum Banknotes {
+    R50(50), R100(100), R500(500), R1000(1000), R5000(5000);
+
+    public int value;
+
+    Banknotes(int value) {
+        this.value = value;
+    }
+}
+
+class CashWithdrawalException extends Exception {
+
+    public CashWithdrawalException() {
+        super("Ошибка выдачи наличных");
+    }
+}
