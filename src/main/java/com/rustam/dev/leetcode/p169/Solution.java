@@ -26,6 +26,7 @@ public class Solution {
         return -1;
     }
 
+    // алгоритм "Boyer-Moore Majority Vote"
     public int majorityElement2(int[] nums) {
         int count = 0;
         Integer candidate = null;
