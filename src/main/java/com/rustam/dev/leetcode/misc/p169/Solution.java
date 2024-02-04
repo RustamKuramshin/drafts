@@ -1,4 +1,4 @@
-package com.rustam.dev.leetcode.p169;
+package com.rustam.dev.leetcode.misc.p169;
 
 import java.util.HashMap;
 
