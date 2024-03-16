@@ -1,4 +1,4 @@
-package com.rustam.dev.graph;
+package com.rustam.dev.graphs;
 
 import java.util.ArrayList;
 import java.util.List;
