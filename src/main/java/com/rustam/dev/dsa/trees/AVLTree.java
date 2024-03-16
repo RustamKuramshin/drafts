@@ -1,4 +1,4 @@
-package com.rustam.dev;
+package com.rustam.dev.dsa.trees;
 
 class Node {
     int key, height;

@@ -1,4 +1,4 @@
-package com.rustam.dev;
+package com.rustam.dev.dsa.graphs;
 
 // Используем UFDS для эффективного объединения вершин в компоненты связности и определения общего количества таких компонент.
 public class GraphComponents {

@@ -1,4 +1,4 @@
-package com.rustam.dev.graphs;
+package com.rustam.dev.dsa.graphs;
 
 public class GraphAdjacencyMatrix {
 

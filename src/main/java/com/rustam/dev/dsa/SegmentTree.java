@@ -1,4 +1,4 @@
-package com.rustam.dev;
+package com.rustam.dev.dsa;
 
 class SegmentTree {
     int[] tree;

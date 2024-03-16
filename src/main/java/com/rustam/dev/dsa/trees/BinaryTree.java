@@ -1,4 +1,4 @@
-package com.rustam.dev.trees;
+package com.rustam.dev.dsa.trees;
 
 import java.util.LinkedList;
 import java.util.Queue;

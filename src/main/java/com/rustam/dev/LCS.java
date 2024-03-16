@@ -1,5 +1,6 @@
 package com.rustam.dev;
 
+// Longest Common Subsequence (
 public class LCS {
 
     public static String findLCS(String s1, String s2) {
