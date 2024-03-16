@@ -131,6 +131,25 @@ public class BinaryTree {
         return minv;
     }
 
+    // Метод для поиска ключа в BST
+    boolean search(int value) {
+        return searchRec(root, value);
+    }
+
+    // Рекурсивная функция для поиска ключа в BST
+    boolean searchRec(TreeNode root, int key) {
+        // Базовый случай: корень пуст или ключ равен корню
+        if (root == null || root.value == key)
+            return root != null;
+
+        // Значение больше, чем корень
+        if (root.value < key)
+            return searchRec(root.right, key);
+
+        // Значение меньше, чем корень
+        return searchRec(root.left, key);
+    }
+
 
     public static void main(String[] args) {
         BinaryTree tree = new BinaryTree();
