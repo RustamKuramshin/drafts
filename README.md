@@ -1,1 +1,1 @@
-# Code samples, algorithms, solving problems from the LeetCode
+# Code samples, DSA, algorithms, solving problems from the LeetCode
