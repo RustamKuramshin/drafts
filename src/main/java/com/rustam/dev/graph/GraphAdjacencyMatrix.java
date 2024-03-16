@@ -1,6 +1,7 @@
 package com.rustam.dev.graph;
 
 public class GraphAdjacencyMatrix {
+
     private final int V; // Количество вершин
     private final int[][] adjMatrix; // Матрица смежности
 

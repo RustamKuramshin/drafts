@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class GraphAdjacencyList {
+
     private final List<List<Integer>> adjList;
 
     public GraphAdjacencyList(int vertices) {
