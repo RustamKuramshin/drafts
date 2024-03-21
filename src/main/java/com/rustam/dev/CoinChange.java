@@ -5,7 +5,7 @@ import java.util.Arrays;
 public class CoinChange {
 
     public static void makeChange(int[] coins, int amount) {
-        // Сортируем массив монет в порядке убывания
+        // Сортируем массив монет в порядке возрастания
         Arrays.sort(coins);
         int size = coins.length;
 
