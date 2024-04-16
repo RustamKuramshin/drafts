@@ -126,3 +126,4 @@ hs_err_pid*
 *.iml
 target
 /data/demo.mv.db
+.PVS-Studio
