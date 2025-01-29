@@ -129,3 +129,4 @@ target
 .PVS-Studio
 /fullhtml
 **/*.hprof
+**/*.jfr
