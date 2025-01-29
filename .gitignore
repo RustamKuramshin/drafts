@@ -128,3 +128,4 @@ target
 /data/demo.mv.db
 .PVS-Studio
 /fullhtml
+**/*.hprof
