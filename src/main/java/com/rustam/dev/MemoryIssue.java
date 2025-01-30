@@ -3,6 +3,7 @@ package com.rustam.dev;
 import java.util.ArrayList;
 import java.util.List;
 
+
 public class MemoryIssue {
 
     private static final Integer COUNT = 50_000_000;
@@ -10,7 +11,6 @@ public class MemoryIssue {
     private List<Integer> integerList = new ArrayList<>();
 
     public void make() {
-
         for (int i = 0; i < COUNT; i++) {
             integerList.add(i);
         }
@@ -20,9 +20,11 @@ public class MemoryIssue {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         MemoryIssue memoryIssue = new MemoryIssue();
 
-        memoryIssue.make();
+        Thread thread = new Thread(memoryIssue::make);
+        thread.start();
+        thread.join();
     }
 }
