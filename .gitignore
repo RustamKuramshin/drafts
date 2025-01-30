@@ -130,3 +130,6 @@ target
 /fullhtml
 **/*.hprof
 **/*.jfr
+**/*.index
+**/*.threads
+
