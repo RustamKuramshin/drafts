@@ -23,8 +23,10 @@ public class MemoryIssue {
     public static void main(String[] args) throws InterruptedException {
         MemoryIssue memoryIssue = new MemoryIssue();
 
-        Thread thread = new Thread(memoryIssue::make);
-        thread.start();
-        thread.join();
+
+            Thread thread = new Thread(memoryIssue::make);
+            thread.start();
+            thread.join();
+
     }
 }
