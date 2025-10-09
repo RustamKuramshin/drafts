@@ -1,5 +1,8 @@
 package com.rustam.dev.leetcode.array.p014;
 
+import java.util.HashSet;
+
+// https://leetcode.com/problems/longest-common-prefix/
 public class Solution {
     public String longestCommonPrefix(String[] strs) {
 
