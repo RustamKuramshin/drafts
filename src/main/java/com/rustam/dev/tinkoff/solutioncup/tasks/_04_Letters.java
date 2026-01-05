@@ -38,7 +38,7 @@ import java.util.*;
 import java.lang.*;
 
 class _04_Letters {
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         var scanner = new Scanner(System.in);
         var input = scanner.nextLine();
 

@@ -1,7 +1,7 @@
 package com.rustam.dev.tinkoff.solutioncup.tasks;
 
 /*
-Сжатие самоизолирующихся последовательностей 🪜
+Сжатие самоизолирующихся последовательностей
 
 Текст задачи
 
@@ -47,7 +47,7 @@ import java.util.*;
 import java.lang.*;
 
 class _06_Compression {
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         var scanner = new Scanner(System.in);
         var input = scanner.nextLine();
 
