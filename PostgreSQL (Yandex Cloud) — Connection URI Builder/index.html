@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PostgreSQL (Yandex Cloud) — Connection URI Builder</title>
+    <style>
+        :root {
+            --bg: #0b1020;
+            --card: rgba(255, 255, 255, .06);
+            --card2: rgba(255, 255, 255, .08);
+            --border: rgba(255, 255, 255, .10);
+            --text: rgba(255, 255, 255, .90);
+            --muted: rgba(255, 255, 255, .65);
+            --muted2: rgba(255, 255, 255, .50);
+            --ok: #26d07c;
+            --warn: #ffcc66;
+            --err: #ff5c7a;
+            --accent: #7aa8ff;
+            --accent2: #b092ff;
+            --shadow: 0 16px 40px rgba(0, 0, 0, .35);
+            --radius: 16px;
+            --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--sans);
+            color: var(--text);
+            background:
+                radial-gradient(1200px 800px at 20% -10%, rgba(122, 168, 255, .25), transparent 60%),
+                radial-gradient(1000px 700px at 95% 0%, rgba(176, 146, 255, .20), transparent 55%),
+                radial-gradient(900px 700px at 60% 110%, rgba(38, 208, 124, .10), transparent 55%),
+                var(--bg);
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        header {
+            max-width: 1120px;
+            margin: 28px auto 10px;
+            padding: 0 18px;
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: .2px;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 13.5px;
+            line-height: 1.35;
+            max-width: 760px;
+        }
+
+        .pill {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .05);
+            border-radius: 999px;
+            color: var(--muted);
+            font-size: 12.5px;
+            white-space: nowrap;
+        }
+
+        .pill b {
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        main {
+            max-width: 1120px;
+            margin: 12px auto 34px;
+            padding: 0 18px;
+            display: grid;
+            grid-template-columns: 1.25fr .95fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 980px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .045));
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .card h2 {
+            margin: 0;
+            padding: 14px 16px 10px;
+            font-size: 15px;
+            letter-spacing: .2px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(255, 255, 255, .03);
+        }
+
+        .card .content {
+            padding: 14px 16px 16px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        @media (max-width: 620px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 12.5px;
+            color: var(--muted);
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+        }
+
+        label .req {
+            font-size: 11px;
+            color: rgba(255, 255, 255, .55);
+            border: 1px solid var(--border);
+            padding: 1px 6px;
+            border-radius: 999px;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(10, 16, 32, .55);
+            color: var(--text);
+            padding: 10px 11px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        textarea {
+            min-height: 78px;
+            resize: vertical;
+            font-family: var(--mono);
+            font-size: 12.8px;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: rgba(255, 255, 255, .35);
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: rgba(122, 168, 255, .65);
+            box-shadow: 0 0 0 4px rgba(122, 168, 255, .10);
+        }
+
+        .help {
+            font-size: 12px;
+            color: var(--muted2);
+            line-height: 1.35;
+        }
+
+        .err {
+            font-size: 12px;
+            color: var(--err);
+            line-height: 1.25;
+            display: none;
+        }
+
+        .field.invalid .err {
+            display: block;
+        }
+
+        .field.invalid input,
+        .field.invalid select,
+        .field.invalid textarea {
+            border-color: rgba(255, 92, 122, .75);
+            box-shadow: 0 0 0 4px rgba(255, 92, 122, .10);
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .row>* {
+            flex: 1;
+        }
+
+        .row .mini {
+            flex: .55;
+        }
+
+        .btn {
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .06);
+            color: var(--text);
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-size: 13.5px;
+            font-weight: 650;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            user-select: none;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, .09);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn.primary {
+            background: linear-gradient(135deg, rgba(122, 168, 255, .24), rgba(176, 146, 255, .22));
+            border-color: rgba(122, 168, 255, .45);
+        }
+
+        .btn.danger {
+            background: rgba(255, 92, 122, .10);
+            border-color: rgba(255, 92, 122, .35);
+            color: rgba(255, 255, 255, .88);
+        }
+
+        .btn.small {
+            padding: 8px 10px;
+            border-radius: 10px;
+            font-size: 12.5px;
+            font-weight: 650;
+        }
+
+        .btn.icon {
+            flex: 0;
+            width: 42px;
+            padding: 10px 0;
+        }
+
+        .params {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .paramRow {
+            display: grid;
+            grid-template-columns: 1fr 1fr 44px;
+            gap: 10px;
+            align-items: center;
+        }
+
+        @media (max-width: 620px) {
+            .paramRow {
+                grid-template-columns: 1fr;
+            }
+
+            .paramRow .btn.icon {
+                width: 100%;
+            }
+        }
+
+        .output {
+            font-family: var(--mono);
+            background: rgba(0, 0, 0, .22);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px;
+            overflow: auto;
+            white-space: pre;
+            font-size: 12.7px;
+            line-height: 1.35;
+            min-height: 96px;
+        }
+
+        .status {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 7px 10px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, .05);
+            font-size: 12.5px;
+            color: var(--muted);
+        }
+
+        .dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--muted2);
+        }
+
+        .badge.ok .dot {
+            background: var(--ok);
+        }
+
+        .badge.warn .dot {
+            background: var(--warn);
+        }
+
+        .badge.err .dot {
+            background: var(--err);
+        }
+
+        .footerNote {
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--muted2);
+            line-height: 1.35;
+        }
+
+        .kbd {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: rgba(255, 255, 255, .82);
+            background: rgba(255, 255, 255, .06);
+            border: 1px solid var(--border);
+            padding: 2px 6px;
+            border-radius: 7px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="brand">
+            <div class="title">PostgreSQL (Yandex Cloud) — Connection URI Builder</div>
+            <div class="subtitle">
+                Собирает корректный <span class="kbd">postgresql://...</span> URI, валидирует ввод и помогает не
+                ошибаться
+                с <span class="kbd">sslmode</span> и <span class="kbd">target_session_attrs</span>.
+                Формат URI: <span class="kbd">postgresql://[user[:password]@][host][:port][/dbname][?paramspec]</span>.
+            </div>
+        </div>
+        <div class="pill">
+            Подсказка: <b>Ctrl / ⌘ + Enter</b> — пересобрать URI
+        </div>
+    </header>
+
+    <main>
+        <!-- LEFT: FORM -->
+        <section class="card" id="builderCard">
+            <h2>Ввод параметров</h2>
+            <div class="content">
+                <div class="grid" id="fieldsGrid">
+                    <!-- fields injected by JS -->
+                </div>
+
+                <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn primary" id="btnBuild" type="button">Собрать URI</button>
+                    <button class="btn" id="btnReset" type="button">Сброс</button>
+                </div>
+
+                <div class="footerNote">
+                    Для публичных хостов Managed PostgreSQL в Yandex Cloud обычно требуется SSL, часто используют <span
+                        class="kbd">sslmode=verify-full</span>,
+                    порт по умолчанию в примерах — <span class="kbd">6432</span>.
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT: RESULT -->
+        <aside class="card">
+            <h2>Результат</h2>
+            <div class="content">
+                <div class="output" id="output" aria-label="Результирующий URI"></div>
+
+                <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn" id="btnCopy" type="button">Копировать</button>
+                    <button class="btn" id="btnCopyMasked" type="button">Копировать (скрыть пароль)</button>
+                </div>
+
+                <div class="status" id="statusBadges"></div>
+
+                <div class="footerNote">
+                    ⚠️ Пароль попадает в URI — это удобно для конфигов, но не для логов. Используйте вариант “скрыть
+                    пароль” при шаринге.
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        /**
+         * Расширяемая схема:
+         * - чтобы добавить поле: добавьте объект в schema.fields
+         * - чтобы добавить валидатор (в т.ч. regex): добавьте в schema.validators и укажите его в поле
+         */
+        const schema = {
+            defaults: {
+                scheme: "postgresql",
+                port: "6432",
+                sslmode: "verify-full",
+                target_session_attrs: "read-write",
+            },
+
+            // Базовые валидаторы (легко расширять, включая regex)
+            validators: {
+                required: (v) => (String(v ?? "").trim().length ? null : "Поле обязательно"),
+                port: (v) => {
+                    if (String(v).trim() === "") return null; // порт можно оставить пустым
+                    const n = Number(v);
+                    if (!Number.isInteger(n) || n < 1 || n > 65535) return "Порт должен быть целым числом 1..65535";
+                    return null;
+                },
+                host: (v) => {
+                    const s = String(v ?? "").trim();
+                    if (!s) return "Укажите хост (FQDN) или список хостов через запятую";
+                    const parts = s.split(",").map(p => p.trim()).filter(Boolean);
+                    if (!parts.length) return "Укажите хотя бы один хост";
+                    // Небольшая практичная проверка FQDN (не RFC-идеальная, но ловит типовые ошибки)
+                    const fqdnRe = /^(?=.{1,253}$)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)(\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+                    for (const h of parts) {
+                        if (h.includes(" ")) return "В хосте не должно быть пробелов (используйте запятую для списка)";
+                        if (!fqdnRe.test(h)) return `Похоже на некорректный FQDN: ${h}`;
+                    }
+                    return null;
+                },
+                noSpaces: (v) => (String(v ?? "").includes(" ") ? "Пробелы недопустимы" : null),
+                // пример будущего regex-валидатора:
+                // regex: (v, {pattern, message}) => (new RegExp(pattern).test(String(v ?? "")) ? null : (message || "Не проходит regex-проверку")),
+                dbname: (v) => {
+                    const s = String(v ?? "").trim();
+                    if (!s) return "Укажите имя базы данных (dbname)";
+                    if (s.includes("/")) return "dbname не должно содержать '/'";
+                    return null;
+                },
+                username: (v) => {
+                    const s = String(v ?? "").trim();
+                    if (!s) return "Укажите пользователя";
+                    return null;
+                }
+            },
+
+            // Описание полей (UI + правила)
+            fields: [
+                {
+                    id: "host",
+                    label: "Host (FQDN) / список хостов",
+                    required: true,
+                    placeholder: "c-xxxxxx.rw.mdb.yandexcloud.net  или  host1,host2",
+                    help: "Можно указать 1 FQDN или список через запятую (для HA). Без пробелов вокруг запятых желательно.",
+                    type: "text",
+                    validators: ["required", "host"]
+                },
+                {
+                    id: "port",
+                    label: "Port",
+                    required: false,
+                    placeholder: "6432",
+                    help: "В Yandex Cloud часто используется 6432 (можно оставить пустым, если порт задан по умолчанию в вашей среде).",
+                    type: "text",
+                    validators: ["port", "noSpaces"]
+                },
+                {
+                    id: "dbname",
+                    label: "Database (dbname)",
+                    required: true,
+                    placeholder: "mydb",
+                    help: "Имя БД для подключения.",
+                    type: "text",
+                    validators: ["required", "dbname"]
+                },
+                {
+                    id: "username",
+                    label: "User",
+                    required: true,
+                    placeholder: "service",
+                    help: "Имя пользователя БД.",
+                    type: "text",
+                    validators: ["required", "username", "noSpaces"]
+                },
+                {
+                    id: "password",
+                    label: "Password",
+                    required: false,
+                    placeholder: "••••••••",
+                    help: "Если не хотите хранить пароль в URI — оставьте пустым и используйте секреты/переменные окружения.",
+                    type: "password",
+                    validators: []
+                },
+                {
+                    id: "sslmode",
+                    label: "sslmode",
+                    required: true,
+                    type: "select",
+                    options: [
+                        { value: "verify-full", text: "verify-full (рекомендуется для публичного доступа)" },
+                        { value: "require", text: "require" },
+                        { value: "verify-ca", text: "verify-ca" },
+                        { value: "disable", text: "disable (только внутри сети/если допустимо)" }
+                    ],
+                    help: "Для публичных хостов Managed PostgreSQL подключение обычно только по SSL; часто используют verify-full.",
+                    validators: ["required"]
+                },
+                {
+                    id: "target_session_attrs",
+                    label: "target_session_attrs",
+                    required: true,
+                    type: "select",
+                    options: [
+                        { value: "read-write", text: "read-write (подключаться только к RW)" },
+                        { value: "primary", text: "primary (не standby; часто надежнее при read_only)" },
+                        { value: "prefer-standby", text: "prefer-standby (для чтения, если есть реплика)" },
+                        { value: "read-only", text: "read-only" },
+                        { value: "standby", text: "standby" },
+                        { value: "any", text: "any (по умолчанию)" }
+                    ],
+                    help: "Определяет, какой сервер приемлем при подключении (мастер/реплика и т.п.).",
+                    validators: ["required"]
+                }
+            ],
+
+            // Параметры querystring (key/value)
+            // В UI: sslmode и target_session_attrs редактируются отдельными полями, но физически попадают в query-параметры.
+            baseQueryParams: ["sslmode", "target_session_attrs"]
+        };
+
+        // ---------- UI rendering ----------
+        const elGrid = document.getElementById("fieldsGrid");
+        const output = document.getElementById("output");
+        const statusBadges = document.getElementById("statusBadges");
+
+        const state = {
+            values: {},
+            extraParams: [
+                // Можно оставить пустым. Пример: {key:"pool_max_conns", value:"10"}
+            ]
+        };
+
+        function h(tag, attrs = {}, children = []) {
+            const e = document.createElement(tag);
+            for (const [k, v] of Object.entries(attrs)) {
+                if (k === "class") e.className = v;
+                else if (k === "html") e.innerHTML = v;
+                else e.setAttribute(k, v);
+            }
+            for (const c of children) e.appendChild(c);
+            return e;
+        }
+
+        function renderFields() {
+            elGrid.innerHTML = "";
+            for (const f of schema.fields) {
+                const field = h("div", { class: "field", "data-field": f.id });
+                const label = h("label", {});
+                label.appendChild(document.createTextNode(f.label));
+                if (f.required) label.appendChild(h("span", { class: "req", html: "обяз." }));
+
+                let control;
+                if (f.type === "select") {
+                    control = h("select", { id: f.id });
+                    for (const opt of f.options) {
+                        control.appendChild(h("option", { value: opt.value, html: escapeHtml(opt.text) }));
+                    }
+                } else if (f.type === "textarea") {
+                    control = h("textarea", { id: f.id, placeholder: f.placeholder || "" });
+                } else {
+                    control = h("input", { id: f.id, type: f.type || "text", placeholder: f.placeholder || "" });
+                }
+
+                const help = h("div", { class: "help", html: escapeHtml(f.help || "") });
+                const err = h("div", { class: "err" });
+
+                control.addEventListener("input", () => {
+                    state.values[f.id] = control.value;
+                    validateAndBuild(false);
+                });
+                control.addEventListener("change", () => {
+                    state.values[f.id] = control.value;
+                    validateAndBuild(false);
+                });
+
+                field.appendChild(label);
+                field.appendChild(control);
+                if (f.help) field.appendChild(help);
+                field.appendChild(err);
+
+                elGrid.appendChild(field);
+            }
+
+            // Блок параметров (extra query params)
+            const paramsCard = h("div", { class: "field", style: "grid-column:1/-1; margin-top:2px;" });
+            paramsCard.appendChild(h("label", { html: "Дополнительные query-параметры (key=value)" }));
+            paramsCard.appendChild(h("div", {
+                class: "help", html:
+                    "Сюда добавляйте любые доп. параметры (например pool_max_conns). " +
+                    "Параметры <span class='kbd'>sslmode</span> и <span class='kbd'>target_session_attrs</span> добавляются автоматически."
+            }));
+
+            const paramsWrap = h("div", { class: "params", id: "paramsWrap" });
+            paramsCard.appendChild(paramsWrap);
+
+            const addRowBtn = h("button", { class: "btn small", type: "button" }, [document.createTextNode("Добавить параметр")]);
+            addRowBtn.addEventListener("click", () => {
+                state.extraParams.push({ key: "", value: "" });
+                renderParamRows();
+                validateAndBuild(false);
+            });
+
+            paramsCard.appendChild(h("div", { style: "display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;" }, [addRowBtn]));
+            elGrid.appendChild(paramsCard);
+
+            renderParamRows();
+        }
+
+        function renderParamRows() {
+            const wrap = document.getElementById("paramsWrap");
+            wrap.innerHTML = "";
+
+            if (!state.extraParams.length) {
+                wrap.appendChild(h("div", { class: "help", html: "Пока нет дополнительных параметров." }));
+                return;
+            }
+
+            state.extraParams.forEach((p, idx) => {
+                const row = h("div", { class: "paramRow", "data-idx": String(idx) });
+                const key = h("input", { type: "text", placeholder: "key (например pool_max_conns)", value: p.key ?? "" });
+                const val = h("input", { type: "text", placeholder: "value (например 10)", value: p.value ?? "" });
+                const del = h("button", { class: "btn icon danger", type: "button", title: "Удалить" }, [document.createTextNode("✕")]);
+
+                key.addEventListener("input", () => { state.extraParams[idx].key = key.value; validateAndBuild(false); });
+                val.addEventListener("input", () => { state.extraParams[idx].value = val.value; validateAndBuild(false); });
+                del.addEventListener("click", () => {
+                    state.extraParams.splice(idx, 1);
+                    renderParamRows();
+                    validateAndBuild(false);
+                });
+
+                row.appendChild(key);
+                row.appendChild(val);
+                row.appendChild(del);
+                wrap.appendChild(row);
+            });
+        }
+
+        // ---------- validation ----------
+        function setFieldError(fieldId, msg) {
+            const box = document.querySelector(`.field[data-field="${cssEscape(fieldId)}"]`);
+            if (!box) return;
+            const err = box.querySelector(".err");
+            if (msg) {
+                box.classList.add("invalid");
+                err.textContent = msg;
+            } else {
+                box.classList.remove("invalid");
+                err.textContent = "";
+            }
+        }
+
+        function validateAll() {
+            const errors = [];
+            for (const f of schema.fields) {
+                const v = state.values[f.id] ?? "";
+                let msg = null;
+                for (const rule of (f.validators || [])) {
+                    const fn = schema.validators[rule];
+                    if (!fn) continue;
+                    const e = fn(v, f);
+                    if (e) { msg = e; break; }
+                }
+                setFieldError(f.id, msg);
+                if (msg) errors.push({ field: f.id, message: msg });
+            }
+
+            // Валидируем extra params: ключи должны быть непустыми и не конфликтовать с базовыми (sslmode, target_session_attrs)
+            const baseSet = new Set(schema.baseQueryParams);
+            for (let i = 0; i < state.extraParams.length; i++) {
+                const { key, value } = state.extraParams[i];
+                const k = String(key ?? "").trim();
+                if (!k && String(value ?? "").trim()) {
+                    errors.push({ field: `extraParam[${i}]`, message: "У доп.параметра задано значение без ключа" });
+                }
+                if (k && baseSet.has(k)) {
+                    errors.push({ field: `extraParam[${i}]`, message: `Параметр '${k}' уже задаётся отдельным полем — удалите его из доп.параметров` });
+                }
+                if (k.includes(" ") || k.includes("&") || k.includes("=")) {
+                    errors.push({ field: `extraParam[${i}]`, message: `Ключ '${k}' содержит недопустимые символы (пробел/&/=)` });
+                }
+            }
+            return errors;
+        }
+
+        // ---------- build ----------
+        function encodeUserInfoPart(s) {
+            // encodeURIComponent безопасен для user/pass/dbname; оставим ':' '@' '/' '?' '&' '=' закодированными
+            return encodeURIComponent(String(s ?? ""));
+        }
+
+        function normalizeHosts(hostRaw) {
+            return hostRaw.split(",").map(h => h.trim()).filter(Boolean).join(",");
+        }
+
+        function buildUri({ maskPassword = false } = {}) {
+            const scheme = schema.defaults.scheme;
+            const host = normalizeHosts(state.values.host || "");
+            const port = String(state.values.port || "").trim();
+            const dbname = String(state.values.dbname || "").trim();
+            const user = String(state.values.username || "").trim();
+            const pass = String(state.values.password || "");
+
+            // userinfo
+            let userInfo = "";
+            if (user) {
+                userInfo = encodeUserInfoPart(user);
+                if (pass) userInfo += ":" + (maskPassword ? "****" : encodeUserInfoPart(pass));
+                userInfo += "@";
+            }
+
+            // authority
+            let authority = host;
+            if (port) authority += ":" + String(Number(port)); // Number() уже проверен валидатором
+
+            // path
+            const path = "/" + encodeUserInfoPart(dbname);
+
+            // query params
+            const qp = new URLSearchParams();
+            qp.set("sslmode", state.values.sslmode || schema.defaults.sslmode);
+            qp.set("target_session_attrs", state.values.target_session_attrs || schema.defaults.target_session_attrs);
+
+            // extras
+            for (const p of state.extraParams) {
+                const k = String(p.key ?? "").trim();
+                const v = String(p.value ?? "").trim();
+                if (!k) continue;
+                qp.set(k, v);
+            }
+
+            const query = qp.toString();
+            return `${scheme}://${userInfo}${authority}${path}?${query}`;
+        }
+
+        // ---------- UX helpers ----------
+        function setBadges(errors) {
+            statusBadges.innerHTML = "";
+            const make = (cls, text) => {
+                const b = document.createElement("div");
+                b.className = `badge ${cls}`;
+                const dot = document.createElement("span");
+                dot.className = "dot";
+                const t = document.createElement("span");
+                t.textContent = text;
+                b.appendChild(dot);
+                b.appendChild(t);
+                statusBadges.appendChild(b);
+            };
+
+            if (!errors.length) {
+                make("ok", "Валидация пройдена");
+            } else {
+                make("err", `Ошибок: ${errors.length}`);
+            }
+
+            // мягкие подсказки
+            const ssl = state.values.sslmode;
+            if (ssl === "disable") {
+                make("warn", "sslmode=disable — используйте только если точно допустимо (внутренняя сеть/политики)");
+            } else if (ssl === "verify-full") {
+                make("ok", "sslmode=verify-full — типичный вариант для публичного доступа");
+            }
+
+            const tsa = state.values.target_session_attrs;
+            if (tsa === "any") make("warn", "target_session_attrs=any — может подключить не к тому хосту при failover");
+            if (tsa === "prefer-standby") make("ok", "prefer-standby — хороший дефолт для read-only приложений");
+            if (tsa === "primary") make("ok", "primary — часто надёжнее, если default_transaction_read_only может меняться");
+        }
+
+        function validateAndBuild(forceShowErrors = true) {
+            const errors = validateAll();
+            setBadges(errors);
+
+            // build output even with errors? — показываем только если базовые поля ок
+            const canBuild = errors.filter(e => !String(e.field).startsWith("extraParam")).length === 0;
+            if (canBuild) {
+                output.textContent = buildUri({ maskPassword: false });
+            } else {
+                output.textContent = forceShowErrors
+                    ? ("Исправьте ошибки ввода слева — URI будет собран автоматически.\n\n" +
+                        errors.map(e => `• ${e.message}`).join("\n"))
+                    : output.textContent;
+            }
+            return { errors, canBuild };
+        }
+
+        function escapeHtml(s) {
+            return String(s ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+        function cssEscape(s) {
+            // минимальный escape для data-field селектора
+            return String(s).replaceAll('"', '\\"');
+        }
+
+        // ---------- init ----------
+        function resetToDefaults() {
+            state.values = {};
+            state.extraParams = [];
+            for (const f of schema.fields) {
+                const def = schema.defaults[f.id];
+                state.values[f.id] = (def !== undefined) ? String(def) : "";
+            }
+
+            // apply to inputs
+            for (const f of schema.fields) {
+                const el = document.getElementById(f.id);
+                if (!el) continue;
+                el.value = state.values[f.id] ?? "";
+            }
+
+            renderParamRows();
+            validateAndBuild(true);
+        }
+
+        document.getElementById("btnBuild").addEventListener("click", () => validateAndBuild(true));
+        document.getElementById("btnReset").addEventListener("click", () => resetToDefaults());
+
+        document.getElementById("btnCopy").addEventListener("click", async () => {
+            const { errors, canBuild } = validateAndBuild(true);
+            if (!canBuild) return;
+            await navigator.clipboard.writeText(buildUri({ maskPassword: false }));
+            flash("Скопировано");
+        });
+
+        document.getElementById("btnCopyMasked").addEventListener("click", async () => {
+            const { errors, canBuild } = validateAndBuild(true);
+            if (!canBuild) return;
+            await navigator.clipboard.writeText(buildUri({ maskPassword: true }));
+            flash("Скопировано (пароль скрыт)");
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") validateAndBuild(true);
+        });
+
+        function flash(text) {
+            const pill = document.querySelector(".pill");
+            const old = pill.innerHTML;
+            pill.innerHTML = `✅ <b>${escapeHtml(text)}</b>`;
+            setTimeout(() => { pill.innerHTML = old; }, 1200);
+        }
+
+        renderFields();
+        resetToDefaults();
+    </script>
+</body>
+
+</html>
