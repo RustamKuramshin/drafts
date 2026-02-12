@@ -206,10 +206,16 @@ def get_mr_commits(gl: Any, host: str, project_path: str, iid: str) -> List[Dict
     # Ручной энкодинг приводит к двойному кодированию ("%" -> "%25") и 404.
     project = gl.projects.get(project_path)
     mr = project.mergerequests.get(iid)
-    # В python-gitlab метод .commits() возвращает все коммиты MR
+    # В python-gitlab метод .commits() возвращает список объектов ProjectCommit
+    # У этих объектов есть атрибуты .title и .message; они НЕ являются dict-ами.
     commits = mr.commits()
-    # Коммиты представлены как dict-like объекты с .get
-    return [dict(c) for c in commits]
+    return [
+        {
+            "title": getattr(c, "title", "") or "",
+            "message": getattr(c, "message", "") or "",
+        }
+        for c in commits
+    ]
 
 
 def build_jira_client(
