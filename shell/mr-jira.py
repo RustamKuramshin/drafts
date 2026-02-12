@@ -164,6 +164,26 @@ def parse_mr_url(mr_url: str) -> Tuple[str, str, str]:
     return host, project_path, iid
 
 
+def parse_repo_url(repo_url: str) -> Tuple[str, str]:
+    """Парсит URL репозитория формата https://HOST/<project_path>
+
+    Возвращает: (host, project_path)
+    """
+    try:
+        parsed = urllib.parse.urlparse(repo_url)
+        host = parsed.netloc
+        path = parsed.path.rstrip("/")
+    except Exception:
+        raise typer.BadParameter(f"Не удалось распарсить URL репозитория: {repo_url}")
+
+    if not host or not path or path == "/":
+        raise typer.BadParameter(f"Ожидался формат 'https://HOST/<project_path>': {repo_url}")
+
+    # Убираем ведущий слэш
+    project_path = path.lstrip("/")
+    return host, project_path
+
+
 def compile_regexps(jira_key_re: str, ignore_patterns: Sequence[str]) -> Tuple[re.Pattern[str], List[re.Pattern[str]]]:
     try:
         key_rx = re.compile(jira_key_re)
@@ -341,10 +361,10 @@ def render_output(
 # ============================ Общая логика: извлечение issue из MR ===============
 
 
-def extract_issues_from_mr(
-    mr_url: str,
-    gitlab_token: str,
-    gitlab_url_override: Optional[str],
+def extract_issues_from_mr_id(
+    gl: Any,
+    project_path: str,
+    iid: str,
     jira_base: str,
     jira_user: Optional[str],
     jira_token: Optional[str],
@@ -353,31 +373,25 @@ def extract_issues_from_mr(
     ignore_pattern: List[str],
     jira_project: Optional[str],
     insecure: bool,
-) -> Tuple[str, str, List[JiraRootIssue], JIRA, Any]:
-    """Извлекает корневые Jira-issue из коммитов MR.
-
-    Возвращает: (project_path, project_name, root_issues, jira_client, gl)
-    """
-    host, project_path, iid = parse_mr_url(mr_url)
-    if not gitlab_token:
-        raise typer.BadParameter("Не задан токен GitLab. Укажите --gitlab-token или env GITLAB_TOKEN")
-
-    gitlab_base = gitlab_url_override or f"https://{host}"
+    mr_url_for_log: str,
+) -> List[JiraRootIssue]:
+    """Извлекает корневые Jira-issue из коммитов MR по его IID."""
     key_rx, ignore_rx = compile_regexps(jira_key_re, ignore_pattern)
-
-    logging.debug("GitLab host: %s, project: %s, iid: %s", host, project_path, iid)
-    # GitLab
-    try:
-        gl = build_gitlab_client(gitlab_base, gitlab_token, insecure=insecure)
-    except Exception as e:
-        err_console.print(f"Не удалось аутентифицироваться в GitLab: {e}")
-        raise typer.Exit(code=2)
 
     # Получаем коммиты MR
     try:
-        commits = get_mr_commits(gl, host, project_path, iid)
+        # Для логов нам нужен host, но в get_mr_commits он не используется для запроса
+        project = gl.projects.get(project_path)
+        mr = project.mergerequests.get(iid)
+        commits = [
+            {
+                "title": getattr(c, "title", "") or "",
+                "message": getattr(c, "message", "") or "",
+            }
+            for c in mr.commits()
+        ]
     except Exception as e:
-        err_console.print(f"Ошибка при получении коммитов MR: {e}")
+        err_console.print(f"Ошибка при получении коммитов MR {iid}: {e}")
         raise typer.Exit(code=3)
 
     logging.info("Найдено коммитов в MR: %d", len(commits))
@@ -405,8 +419,8 @@ def extract_issues_from_mr(
 
     if not found_keys:
         console.print("No Jira issues found in commits for MR:")
-        console.print(mr_url)
-        raise typer.Exit(code=0)
+        console.print(mr_url_for_log)
+        return []
 
     logging.info("Уникальные Jira-ключи: %d", len(found_keys))
 
@@ -429,7 +443,67 @@ def extract_issues_from_mr(
         if root.key not in root_map:
             root_map[root.key] = root
 
-    root_issues = list(root_map.values())
+    return list(root_map.values())
+
+
+def extract_issues_from_mr(
+    mr_url: str,
+    gitlab_token: str,
+    gitlab_url_override: Optional[str],
+    jira_base: str,
+    jira_user: Optional[str],
+    jira_token: Optional[str],
+    user_agent: str,
+    jira_key_re: str,
+    ignore_pattern: List[str],
+    jira_project: Optional[str],
+    insecure: bool,
+) -> Tuple[str, str, List[JiraRootIssue], JIRA, Any]:
+    """Извлекает корневые Jira-issue из коммитов MR.
+
+    Возвращает: (project_path, project_name, root_issues, jira_client, gl)
+    """
+    host, project_path, iid = parse_mr_url(mr_url)
+    if not gitlab_token:
+        raise typer.BadParameter("Не задан токен GitLab. Укажите --gitlab-token или env GITLAB_TOKEN")
+
+    gitlab_base = gitlab_url_override or f"https://{host}"
+
+    logging.debug("GitLab host: %s, project: %s, iid: %s", host, project_path, iid)
+    # GitLab
+    try:
+        gl = build_gitlab_client(gitlab_base, gitlab_token, insecure=insecure)
+    except Exception as e:
+        err_console.print(f"Не удалось аутентифицироваться в GitLab: {e}")
+        raise typer.Exit(code=2)
+
+    root_issues = extract_issues_from_mr_id(
+        gl=gl,
+        project_path=project_path,
+        iid=iid,
+        jira_base=jira_base,
+        jira_user=jira_user,
+        jira_token=jira_token,
+        user_agent=user_agent,
+        jira_key_re=jira_key_re,
+        ignore_pattern=ignore_pattern,
+        jira_project=jira_project,
+        insecure=insecure,
+        mr_url_for_log=mr_url,
+    )
+
+    if not root_issues:
+        raise typer.Exit(code=0)
+
+    # Jira client (re-build for returning if needed, though extract_issues_from_mr_id builds it too)
+    jira_client = build_jira_client(
+        jira_base,
+        token=jira_token,
+        user=jira_user,
+        insecure=insecure,
+        user_agent=user_agent,
+    )
+
     project_name = project_path.rsplit("/", 1)[-1]
     return project_path, project_name, root_issues, jira_client, gl
 
@@ -698,6 +772,135 @@ def create_release(
 
     print()
     print(f"Готово. В релиз {version_name} включено {len(root_issues)} issue.")
+
+
+@create_app.command("mr")
+def create_mr(
+    repo_url: str = typer.Argument(..., help="Ссылка на репозиторий в GitLab (https://host/group/proj)"),
+    source_branch: str = typer.Option(..., "--from", help="Исходная ветка (source branch)"),
+    target_branch: str = typer.Option(..., "--to", help="Целевая ветка (target branch)"),
+    # GitLab auth
+    gitlab_token: Optional[str] = typer.Option(
+        default=os.getenv("GITLAB_TOKEN"),
+        help="Токен GitLab (env: GITLAB_TOKEN)",
+        rich_help_panel="GitLab",
+    ),
+    gitlab_url_override: Optional[str] = typer.Option(
+        default=None,
+        help="База GitLab API/Host (по умолчанию берётся из repo_url).",
+        rich_help_panel="GitLab",
+    ),
+    # Jira auth
+    jira_base: str = typer.Option(
+        default=DEFAULT_JIRA_BASE,
+        help=f"База Jira (env: JIRA_BASE) [по умолчанию: {DEFAULT_JIRA_BASE}]",
+        rich_help_panel="Jira",
+    ),
+    jira_user: Optional[str] = typer.Option(
+        default=os.getenv("JIRA_USER"), help="Пользователь Jira (если используется basic_auth)", rich_help_panel="Jira"
+    ),
+    jira_token: Optional[str] = typer.Option(
+        default=os.getenv("JIRA_TOKEN"), help="API-токен Jira (env: JIRA_TOKEN)", rich_help_panel="Jira"
+    ),
+    user_agent: str = typer.Option(
+        default=DEFAULT_USER_AGENT,
+        help="User-Agent для запросов к Jira.",
+        rich_help_panel="Jira",
+    ),
+    # Поведение
+    jira_project: Optional[str] = typer.Option(
+        default=None,
+        help="Фильтр по проекту Jira (например MMBT).",
+        rich_help_panel="Jira",
+    ),
+    jira_key_re: str = typer.Option(
+        default=DEFAULT_JIRA_KEY_RE,
+        help=f"Regexp для Jira-ключей [по умолчанию: {DEFAULT_JIRA_KEY_RE}]",
+    ),
+    ignore_pattern: List[str] = typer.Option(
+        default=list(DEFAULT_IGNORE_PATTERNS),
+        help="Regexp-паттерны для игнорирования коммитов по первой строке",
+    ),
+    insecure: bool = typer.Option(
+        default=True,
+        help="Игнорировать проверку SSL-сертификатов.",
+    ),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Подробный вывод"),
+) -> None:
+    """Создать Merge Request в GitLab (если он ещё не существует) и вывести список Jira-issue.
+
+    Если открытый MR между ветками уже существует, используется он.
+    """
+    setup_logging(verbose)
+
+    if insecure:
+        try:
+            import urllib3  # type: ignore
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        except Exception:
+            pass
+
+    host, project_path = parse_repo_url(repo_url)
+    if not gitlab_token:
+        raise typer.BadParameter("Не задан токен GitLab. Укажите --gitlab-token или env GITLAB_TOKEN")
+
+    gitlab_base = gitlab_url_override or f"https://{host}"
+
+    # GitLab client
+    try:
+        gl = build_gitlab_client(gitlab_base, gitlab_token, insecure=insecure)
+    except Exception as e:
+        err_console.print(f"Не удалось аутентифицироваться в GitLab: {e}")
+        raise typer.Exit(code=2)
+
+    try:
+        project = gl.projects.get(project_path)
+    except Exception as e:
+        err_console.print(f"Ошибка при получении проекта GitLab {project_path}: {e}")
+        raise typer.Exit(code=2)
+
+    # Ищем существующий MR
+    mrs = project.mergerequests.list(
+        state="opened",
+        source_branch=source_branch,
+        target_branch=target_branch,
+    )
+
+    if mrs:
+        mr = mrs[0]
+        logging.info("Найден существующий открытый MR: %s", mr.web_url)
+    else:
+        # Создаем новый MR
+        logging.info("Создаём новый MR: %s -> %s", source_branch, target_branch)
+        try:
+            mr = project.mergerequests.create({
+                'source_branch': source_branch,
+                'target_branch': target_branch,
+                'title': f"Draft: Merge {source_branch} into {target_branch}",
+            })
+            logging.info("MR создан: %s", mr.web_url)
+        except Exception as e:
+            err_console.print(f"Ошибка при создании MR: {e}")
+            raise typer.Exit(code=7)
+
+    # Теперь извлекаем issues
+    root_issues = extract_issues_from_mr_id(
+        gl=gl,
+        project_path=project_path,
+        iid=str(mr.iid),
+        jira_base=jira_base,
+        jira_user=jira_user,
+        jira_token=jira_token,
+        user_agent=user_agent,
+        jira_key_re=jira_key_re,
+        ignore_pattern=ignore_pattern,
+        jira_project=jira_project,
+        insecure=insecure,
+        mr_url_for_log=mr.web_url,
+    )
+
+    project_name = project_path.rsplit("/", 1)[-1]
+    render_output(root_issues, jira_base=jira_base, fmt=OutputFormat.MD, mr_url=mr.web_url, project_name=project_name)
 
 
 # ============================ Точка входа =======================================
