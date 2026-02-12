@@ -91,10 +91,46 @@ except Exception:
     raise
 
 
-app = typer.Typer(help="Инструменты для работы с GitLab MR и Jira")
-get_app = typer.Typer(help="Команды получения данных (get)")
+app = typer.Typer(
+    help="CLI-инструмент для интеграции GitLab Merge Requests и Jira.",
+    rich_markup_mode="rich",
+    no_args_is_help=True,
+)
+
+@app.callback(invoke_without_command=True)
+def app_callback(
+    ctx: typer.Context,
+    show_help: bool = typer.Option(False, "--help", "-h", help="Показать справку и выйти."),
+):
+    """
+    Инструмент позволяет извлекать Jira-задачи из коммитов GitLab MR,
+    автоматически создавать релизы в Jira и новые Merge Request'ы.
+
+    Используйте подкоманды для конкретных действий:
+    [bold]get[/bold], [bold]create[/bold].
+    """
+    if show_help or ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
+        raise typer.Exit()
+
+
+@app.command("help", hidden=True)
+def custom_help(ctx: typer.Context):
+    """Показать полную справку по утилите."""
+    console.print(ctx.parent.get_help() if ctx.parent else ctx.get_help())
+    raise typer.Exit()
+
+
+get_app = typer.Typer(
+    help="Команды получения данных (get issues)",
+    no_args_is_help=True,
+)
 app.add_typer(get_app, name="get")
-create_app = typer.Typer(help="Команды создания (create)")
+
+create_app = typer.Typer(
+    help="Команды создания (create release, create mr)",
+    no_args_is_help=True,
+)
 app.add_typer(create_app, name="create")
 
 console = Console(stderr=False)
