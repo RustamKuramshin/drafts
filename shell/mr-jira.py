@@ -12,8 +12,6 @@ mr-jira.py — CLI-инструмент для извлечения Jira-зад�
 - Удобный CLI с иерархией команд: `get issues <MR_URL>` и богатыми опциями/справкой.
 
 Требуемые библиотеки (установите при необходимости):
-  pip install typer[all] python-gitlab jira rich
-
   conda create -n mr-jira python=3.12
   conda activate mr-jira
   python -m pip install python-gitlab
