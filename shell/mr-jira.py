@@ -229,8 +229,11 @@ def build_jira_client(
 ) -> JIRA:
     """Создаёт клиента Jira с настраиваемым User-Agent и проверкой TLS.
 
-    Примечание: в некоторых версиях python-jira параметр `session` не поддерживается
-    в конструкторе JIRA. Поэтому используем `options` для передачи verify и заголовков.
+    Для Jira Server/DC с Personal Access Token (PAT) используется Bearer-аутентификация
+    через заголовок Authorization, как в curl -H "Authorization: Bearer $TOKEN".
+    Параметр token_auth в python-jira может некорректно работать с некоторыми версиями
+    Jira Server (приводит к 401 "Basic Authentication Failure"), поэтому заголовок
+    устанавливается вручную.
     """
 
     options: Dict[str, Any] = {
@@ -239,16 +242,19 @@ def build_jira_client(
     headers: Dict[str, str] = {"Accept": "application/json"}
     if user_agent:
         headers["User-Agent"] = user_agent
-    # Передаём заголовки только если они определены (jira объединит их с дефолтными)
-    if headers:
-        options["headers"] = headers
 
     if user and token:
         # Базовая аутентификация (часто для DC/Server с PAT в качестве пароля)
+        options["headers"] = headers
         return JIRA(server=jira_base, options=options, basic_auth=(user, token))
     elif token:
-        # Token Auth (API Token)
-        return JIRA(server=jira_base, options=options, token_auth=token)
+        # Bearer Token Auth — устанавливаем заголовок напрямую, аналогично shell-скрипту:
+        #   curl -H "Authorization: Bearer ${JIRA_TOKEN}"
+        # Это надёжнее, чем token_auth= в python-jira, который может вызывать
+        # 401 на Jira Server/DC.
+        headers["Authorization"] = f"Bearer {token}"
+        options["headers"] = headers
+        return JIRA(server=jira_base, options=options)
     else:
         raise typer.BadParameter("Не заданы учётные данные для Jira. Укажите --jira-token или --jira-user/--jira-token")
 
