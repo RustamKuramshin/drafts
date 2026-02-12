@@ -39,6 +39,7 @@ mr-jira.py — CLI-инструмент для извлечения Jira-зад�
     ./mr-jira.py create release <MR_URL> --jira-project "MMBT"
 - Создать MR в GitLab с упоминанием Jira-задач из коммитов:
     ./mr-jira.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql --from "development" --to "stage"
+    ./mr-jira.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-payment-service --from "development" --to "stage" --jira-project "MMBT" --with-release
 """
 
 from __future__ import annotations
