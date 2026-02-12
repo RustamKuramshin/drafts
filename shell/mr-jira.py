@@ -37,6 +37,8 @@ mr-jira.py — CLI-инструмент для извлечения Jira-зад�
     ./mr-jira.py create release https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT" --gitlab-tag "1.18.28"
     ./mr-jira.py create release https://gitlab.platform.corp/magnitonline/mm/backend/mm-core-bff/-/merge_requests/623 --jira-project "MMBT"
     ./mr-jira.py create release <MR_URL> --jira-project "MMBT"
+- Создать MR в GitLab с упоминанием Jira-задач из коммитов:
+    ./mr-jira.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql --from "development" --to "stage"
 """
 
 from __future__ import annotations
@@ -361,6 +363,36 @@ def render_output(
 # ============================ Общая логика: извлечение issue из MR ===============
 
 
+def extract_jira_keys_from_commits(
+    commits: List[Dict[str, str]],
+    key_rx: re.Pattern[str],
+    ignore_rx: List[re.Pattern[str]],
+    jira_project: Optional[str] = None,
+) -> Set[str]:
+    """Извлекает уникальные Jira-ключи из списка коммитов с фильтрацией."""
+    found_keys: Set[str] = set()
+    for c in commits:
+        title = c.get("title") or ""
+        message = c.get("message") or ""
+        first_line = title or (message.splitlines()[0] if message else "")
+        if is_ignored_commit(first_line, ignore_rx):
+            logging.debug("Игнорируем коммит: %s", first_line)
+            continue
+        keys = extract_jira_keys_from_text([title, message], key_rx)
+        if keys:
+            logging.debug("Коммит: %s — ключи: %s", first_line, ", ".join(sorted(keys)))
+        found_keys.update(keys)
+
+    # Фильтрация по проекту Jira (если указан)
+    if jira_project:
+        project_prefix = jira_project.upper() + "-"
+        filtered = {k for k in found_keys if k.startswith(project_prefix)}
+        logging.info("Фильтр по проекту %s: %d из %d ключей", jira_project, len(filtered), len(found_keys))
+        found_keys = filtered
+
+    return found_keys
+
+
 def extract_issues_from_mr_id(
     gl: Any,
     project_path: str,
@@ -397,25 +429,12 @@ def extract_issues_from_mr_id(
     logging.info("Найдено коммитов в MR: %d", len(commits))
 
     # Извлекаем Jira-ключи
-    found_keys: Set[str] = set()
-    for c in commits:
-        title = c.get("title") or ""
-        message = c.get("message") or ""
-        first_line = title or (message.splitlines()[0] if message else "")
-        if is_ignored_commit(first_line, ignore_rx):
-            logging.debug("Игнорируем коммит: %s", first_line)
-            continue
-        keys = extract_jira_keys_from_text([title, message], key_rx)
-        if keys:
-            logging.debug("Коммит: %s — ключи: %s", first_line, ", ".join(sorted(keys)))
-        found_keys.update(keys)
-
-    # Фильтрация по проекту Jira (если указан)
-    if jira_project:
-        project_prefix = jira_project.upper() + "-"
-        filtered = {k for k in found_keys if k.startswith(project_prefix)}
-        logging.info("Фильтр по проекту %s: %d из %d ключей", jira_project, len(filtered), len(found_keys))
-        found_keys = filtered
+    found_keys = extract_jira_keys_from_commits(
+        commits=commits,
+        key_rx=key_rx,
+        ignore_rx=ignore_rx,
+        jira_project=jira_project
+    )
 
     if not found_keys:
         console.print("No Jira issues found in commits for MR:")
@@ -858,6 +877,38 @@ def create_mr(
     except Exception as e:
         err_console.print(f"Ошибка при получении проекта GitLab {project_path}: {e}")
         raise typer.Exit(code=2)
+
+    # Проверяем наличие существенных изменений (Jira-issues) перед созданием MR
+    logging.info("Проверяем наличие Jira-задач в диффе %s...%s", target_branch, source_branch)
+    try:
+        comparison = project.repository_compare(target_branch, source_branch)
+        compare_commits = [
+            {
+                "title": getattr(c, "title", "") or "",
+                "message": getattr(c, "message", "") or "",
+            }
+            for c in comparison.get('commits', [])
+        ]
+    except Exception as e:
+        err_console.print(f"Ошибка при сравнении веток {target_branch} и {source_branch}: {e}")
+        raise typer.Exit(code=3)
+
+    key_rx, ignore_rx = compile_regexps(jira_key_re, ignore_pattern)
+    found_keys = extract_jira_keys_from_commits(
+        commits=compare_commits,
+        key_rx=key_rx,
+        ignore_rx=ignore_rx,
+        jira_project=jira_project
+    )
+
+    if not found_keys:
+        msg = f"No Jira issues found in diff between '{target_branch}' and '{source_branch}'"
+        if jira_project:
+            msg += f" for project '{jira_project}'"
+        console.print(f"[yellow]{msg}. MR не будет создан.[/yellow]")
+        return
+
+    logging.info("Найдено Jira-задач в диффе: %d. Продолжаем работу с MR.", len(found_keys))
 
     # Ищем существующий MR
     mrs = project.mergerequests.list(
