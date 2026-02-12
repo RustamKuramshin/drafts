@@ -29,18 +29,22 @@ relman.py — CLI-инструмент для управления релиза�
 - USER_AGENT — User-Agent для Jira-запросов (при использовании прямого HTTP — не требуется с библиотеками)
 
 Примеры:
-- Помощь:
+# Помощь:
     ./relman.py --help
     ./relman.py get issues --help
-- Получить список задач:
+
+# Получить список задач:
     ./relman.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808
     ./relman.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT"
-- Создать релиз в Jira:
+
+# Создать релиз в Jira:
     ./relman.py create release https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT" --gitlab-tag "1.18.28"
     ./relman.py create release https://gitlab.platform.corp/magnitonline/mm/backend/mm-core-bff/-/merge_requests/623 --jira-project "MMBT"
-    ./relman.py create release <MR_URL> --jira-project "MMBT"
-- Создать MR в GitLab с упоминанием Jira-задач из коммитов:
+
+# Создать MR в GitLab с упоминанием Jira-задач из коммитов:
     ./relman.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql --from "development" --to "stage"
+
+#  (создать MR и Release в Jira!)
     ./relman.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-payment-service --from "development" --to "stage" --jira-project "MMBT" --with-release
 """
 
