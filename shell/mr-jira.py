@@ -49,6 +49,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional, Sequence, Tuple, Dict, Any, Set
 
+import requests as _requests
+
 def _import_or_exit(module: str, pkg_hint: str) -> Any:
     try:
         return __import__(module)
@@ -255,7 +257,10 @@ def build_jira_client(
     options: Dict[str, Any] = {
         "verify": not insecure,
     }
-    headers: Dict[str, str] = {"Accept": "application/json"}
+    headers: Dict[str, str] = {
+        "Accept": "application/json",
+        "X-Atlassian-Token": "no-check",
+    }
     if user_agent:
         headers["User-Agent"] = user_agent
 
@@ -620,16 +625,58 @@ def create_release(
     start_date = date.today().isoformat()
     description = "Создан автоматически"
 
-    # Создаём релиз (версию) в Jira
+    # Создаём релиз (версию) в Jira через прямой REST-вызов
+    # (python-jira session накапливает cookies, что вызывает XSRF check failed)
     logging.info("Создаём релиз в Jira: %s (проект: %s)", version_name, jira_project)
     try:
-        version = jira_client.create_version(
-            name=version_name,
-            project=jira_project,
-            description=description,
-            startDate=start_date,
+        _jira_headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "X-Atlassian-Token": "no-check",
+            "Authorization": f"Bearer {jira_token}",
+        }
+        if user_agent:
+            _jira_headers["User-Agent"] = user_agent
+        _create_payload = {
+            "name": version_name,
+            "project": jira_project,
+            "description": description,
+            "startDate": start_date,
+            "archived": False,
+            "released": False,
+        }
+
+        JIRA_HEADERS = {
+            "Authorization": f"Bearer {jira_token}",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+
+            # 🔑 критично для XSRF
+            "X-Atlassian-Token": "no-check",
+            "X-Requested-With": "XMLHttpRequest",
+            "Origin": "https://track.magnit.ru",
+
+            # 🧠 маскируемся под браузер
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/121.0.0.0 Safari/537.36"
+            ),
+        }
+
+        _resp = _requests.post(
+            f"{jira_base.rstrip('/')}/rest/api/2/version",
+            headers=JIRA_HEADERS,
+            json=_create_payload,
+            verify=not insecure,
         )
-    except JIRAError as e:
+        _resp.raise_for_status()
+    except _requests.HTTPError as e:
+        err_console.print(f"Ошибка при создании релиза в Jira: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            err_console.print(f"Response: {e.response.text}")
+        raise typer.Exit(code=6)
+    except Exception as e:
         err_console.print(f"Ошибка при создании релиза в Jira: {e}")
         raise typer.Exit(code=6)
 
@@ -639,15 +686,24 @@ def create_release(
     print(f"  Описание: {description}")
     print()
 
-    # Привязываем issue к релизу (устанавливаем fixVersions)
+    # Привязываем issue к релизу (устанавливаем fixVersions) через прямые REST-вызовы
     for issue in sorted(root_issues, key=lambda x: x.key):
         try:
             jira_issue = jira_client.issue(issue.key, fields="fixVersions")
             existing = [v.name for v in jira_issue.fields.fixVersions] if jira_issue.fields.fixVersions else []
             if version_name not in existing:
                 existing.append(version_name)
-                jira_issue.update(fields={"fixVersions": [{"name": n} for n in existing]})
+                _update_payload = {"fields": {"fixVersions": [{"name": n} for n in existing]}}
+                _resp = _requests.put(
+                    f"{jira_base.rstrip('/')}/rest/api/2/issue/{issue.key}",
+                    headers=_jira_headers,
+                    json=_update_payload,
+                    verify=not insecure,
+                )
+                _resp.raise_for_status()
             print(f"- {issue.key}: fixVersion установлен → {version_name}")
+        except _requests.HTTPError as e:
+            err_console.print(f"Ошибка при обновлении {issue.key}: {e}")
         except JIRAError as e:
             err_console.print(f"Ошибка при обновлении {issue.key}: {e}")
 
