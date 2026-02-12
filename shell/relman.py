@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-relman.py — CLI-инструмент для извлечения Jira-задач из Merge Request в GitLab.
+relman.py — CLI-инструмент для управления релизами в GitLab и Jira.
 
 Ключевые возможности:
 - Подключение к GitLab и Jira с аутентификацией по токенам/учётным данным.
@@ -12,8 +12,11 @@ relman.py — CLI-инструмент для извлечения Jira-зада
 - Удобный CLI с иерархией команд: `get issues <MR_URL>` и богатыми опциями/справкой.
 
 Требуемые библиотеки (установите при необходимости):
+  Только, если используется пакет anaconda:
   conda create -n relman python=3.12
   conda activate relman
+
+  Установка зависимостей:
   python -m pip install python-gitlab
   python -m pip install "typer[all]"
   python -m pip install jira
@@ -94,7 +97,7 @@ except Exception:
 
 
 app = typer.Typer(
-    help="CLI-инструмент для интеграции GitLab Merge Requests и Jira.",
+    help="CLI-инструмент для управления релизами в GitLab и Jira",
     rich_markup_mode="rich",
     no_args_is_help=True,
 )
