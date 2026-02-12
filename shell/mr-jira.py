@@ -103,6 +103,10 @@ err_console = Console(stderr=True, style="bold red")
 
 DEFAULT_JIRA_BASE = os.getenv("JIRA_BASE", "https://track.magnit.ru")
 DEFAULT_JIRA_KEY_RE = os.getenv("JIRA_KEY_RE", r"[A-Z][A-Z0-9]+-[0-9]+")
+DEFAULT_USER_AGENT = os.getenv(
+    "USER_AGENT",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+)
 DEFAULT_IGNORE_PATTERNS: Sequence[str] = (
     r"^Merge branch",
     r"^Merge remote-tracking branch",
@@ -223,14 +227,36 @@ def build_jira_client(
     token: Optional[str],
     user: Optional[str],
     insecure: bool = False,
+    user_agent: Optional[str] = None,
 ) -> JIRA:
-    options = {"server": jira_base, "verify": not insecure}
+    """Создаёт клиента Jira с настраиваемым User-Agent и проверкой TLS.
+
+    Важно: некоторые корпоративные прокси блокируют запросы с нестандартным
+    User-Agent. Используем браузерный UA по умолчанию (переопределяется
+    через опцию CLI/переменную окружения).
+    """
+    try:
+        import requests  # type: ignore
+    except Exception:
+        # Библиотека jira зависит от requests; если его нет — подскажем установку
+        print("Требуется пакет 'requests'. Установите: pip install requests", file=sys.stderr)
+        raise
+
+    session = requests.Session()
+    # Управляем проверкой сертификатов на уровне сессии
+    session.verify = not insecure
+    # Устанавливаем браузерный User-Agent, если указан/нужен
+    if user_agent:
+        session.headers.update({"User-Agent": user_agent})
+    # Гарантируем корректные заголовки по умолчанию
+    session.headers.setdefault("Accept", "application/json")
+
     if user and token:
         # Базовая аутентификация (часто для DC/Server с PAT в качестве пароля)
-        return JIRA(options=options, basic_auth=(user, token))
+        return JIRA(server=jira_base, basic_auth=(user, token), session=session)
     elif token:
         # Token Auth (API Token)
-        return JIRA(options=options, token_auth=token)
+        return JIRA(server=jira_base, token_auth=token, session=session)
     else:
         raise typer.BadParameter("Не заданы учётные данные для Jira. Укажите --jira-token или --jira-user/--jira-token")
 
@@ -332,6 +358,11 @@ def get_issues(
     jira_token: Optional[str] = typer.Option(
         default=os.getenv("JIRA_TOKEN"), help="API-токен Jira (env: JIRA_TOKEN)", rich_help_panel="Jira"
     ),
+    user_agent: str = typer.Option(
+        default=DEFAULT_USER_AGENT,
+        help=f"User-Agent для запросов к Jira (env: USER_AGENT). По умолчанию браузерный UA.",
+        rich_help_panel="Jira",
+    ),
     # Поведение
     jira_key_re: str = typer.Option(
         default=DEFAULT_JIRA_KEY_RE,
@@ -414,7 +445,13 @@ def get_issues(
 
     # Jira: резолвим корневые задачи
     try:
-        jira_client = build_jira_client(jira_base, token=jira_token, user=jira_user, insecure=insecure)
+        jira_client = build_jira_client(
+            jira_base,
+            token=jira_token,
+            user=jira_user,
+            insecure=insecure,
+            user_agent=user_agent,
+        )
     except Exception as e:
         err_console.print(f"Не удалось подключиться к Jira: {e}")
         raise typer.Exit(code=4)
