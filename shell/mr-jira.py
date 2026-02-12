@@ -267,6 +267,7 @@ def render_output(
     jira_base: str,
     fmt: str,
     mr_url: str,
+    project_name: str = "",
 ) -> None:
     if fmt == OutputFormat.URLS:
         for i in sorted(issues, key=lambda x: x.key):
@@ -280,7 +281,7 @@ def render_output(
 
     # TEXT / MD — простой текстовый вывод, удобный для копирования в .md файл
     sorted_issues = sorted(issues, key=lambda x: x.key)
-    print(f"Jira issues in MR:")
+    print(project_name)
     print(f"MR - {mr_url}")
     print()
     for idx, i in enumerate(sorted_issues):
@@ -435,7 +436,9 @@ def get_issues(
             root_map[root.key] = root
 
     root_issues = list(root_map.values())
-    render_output(root_issues, jira_base=jira_base, fmt=fmt.lower(), mr_url=mr_url)
+    # Название проекта — последний сегмент project_path
+    project_name = project_path.rsplit("/", 1)[-1]
+    render_output(root_issues, jira_base=jira_base, fmt=fmt.lower(), mr_url=mr_url, project_name=project_name)
 
 
 # ============================ Точка входа =======================================
