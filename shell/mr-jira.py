@@ -64,8 +64,6 @@ except Exception:
 
 try:
     from rich.console import Console  # type: ignore
-    from rich.table import Table  # type: ignore
-    from rich.markdown import Markdown  # type: ignore
 except Exception:
     print("Требуется пакет 'rich'. Установите: pip install rich", file=sys.stderr)
     raise
@@ -280,24 +278,13 @@ def render_output(
         console.print_json(data=payload)
         return
 
-    if fmt == OutputFormat.MD:
-        md_lines = [
-            f"# Jira issues in MR:\n{mr_url}\n"
-        ]
-        for i in sorted(issues, key=lambda x: x.key):
-            md_lines.append(f"- {i.as_url(jira_base)}  ({i.issuetype}) — {i.summary}")
-        console.print(Markdown("\n".join(md_lines)))
-        return
-
-    # TEXT
-    table = Table(title=f"Jira issues in MR: {mr_url}")
-    table.add_column("Key", style="bold")
-    table.add_column("Type")
-    table.add_column("Summary")
-    table.add_column("URL")
-    for i in sorted(issues, key=lambda x: x.key):
-        table.add_row(i.key, i.issuetype, i.summary, i.as_url(jira_base))
-    console.print(table)
+    # TEXT / MD — простой текстовый вывод, удобный для копирования в .md файл
+    sorted_issues = sorted(issues, key=lambda x: x.key)
+    print(f"Jira issues in MR:")
+    print(f"MR - {mr_url}")
+    print()
+    for i in sorted_issues:
+        print(f"- {i.as_url(jira_base)}  ({i.issuetype}) — {i.summary}")
 
 
 # ============================ Команда: get issues ===============================
