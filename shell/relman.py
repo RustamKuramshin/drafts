@@ -30,12 +30,11 @@ relman.py — CLI-инструмент для управления релиза�
 
 Примеры:
 - Помощь:
+    ./relman.py --help
     ./relman.py get issues --help
 - Получить список задач:
     ./relman.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808
     ./relman.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT"
-- Включить подробный вывод:
-    ./relman.py get issues <MR_URL> -v
 - Создать релиз в Jira:
     ./relman.py create release https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT" --gitlab-tag "1.18.28"
     ./relman.py create release https://gitlab.platform.corp/magnitonline/mm/backend/mm-core-bff/-/merge_requests/623 --jira-project "MMBT"
