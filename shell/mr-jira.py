@@ -32,8 +32,10 @@ mr-jira.py — CLI-инструмент для извлечения Jira-зад�
     ./mr-jira.py get issues "https://gitlab.example.com/group/proj/-/merge_requests/123"
 - Вывести только URL-ы задач:
     ./mr-jira.py get issues <MR_URL> --format urls
-- Включить подробный вывод и игнорировать корпоративные сертификаты:
-    ./mr-jira.py get issues <MR_URL> -v --insecure
+- По умолчанию сертификаты TLS НЕ проверяются (как curl -k). Для строгой проверки используйте:
+    ./mr-jira.py get issues <MR_URL> --no-insecure
+- Включить подробный вывод:
+    ./mr-jira.py get issues <MR_URL> -v
 """
 
 from __future__ import annotations
@@ -338,8 +340,8 @@ def get_issues(
         help="Формат вывода: md|text|urls|json",
     ),
     insecure: bool = typer.Option(
-        default=False,
-        help="Отключить проверку SSL-сертификатов (как curl -k)",
+        default=True,
+        help="Игнорировать проверку SSL-сертификатов (как curl -k). По умолчанию включено; используйте --no-insecure для строгой проверки.",
     ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Подробный вывод"),
 ) -> None:
@@ -348,6 +350,15 @@ def get_issues(
     Логика соответствует shell-скрипту mr-jira.sh, но реализована на Python с удобным CLI.
     """
     setup_logging(verbose)
+
+    # Подавляем предупреждения urllib3 об отключённой проверке сертификатов,
+    # чтобы не засорять вывод при корпоративных сертификатах.
+    if insecure:
+        try:
+            import urllib3  # type: ignore
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        except Exception:
+            pass
 
     host, project_path, iid = parse_mr_url(mr_url)
     if not gitlab_token:
