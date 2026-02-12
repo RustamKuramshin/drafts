@@ -231,32 +231,26 @@ def build_jira_client(
 ) -> JIRA:
     """Создаёт клиента Jira с настраиваемым User-Agent и проверкой TLS.
 
-    Важно: некоторые корпоративные прокси блокируют запросы с нестандартным
-    User-Agent. Используем браузерный UA по умолчанию (переопределяется
-    через опцию CLI/переменную окружения).
+    Примечание: в некоторых версиях python-jira параметр `session` не поддерживается
+    в конструкторе JIRA. Поэтому используем `options` для передачи verify и заголовков.
     """
-    try:
-        import requests  # type: ignore
-    except Exception:
-        # Библиотека jira зависит от requests; если его нет — подскажем установку
-        print("Требуется пакет 'requests'. Установите: pip install requests", file=sys.stderr)
-        raise
 
-    session = requests.Session()
-    # Управляем проверкой сертификатов на уровне сессии
-    session.verify = not insecure
-    # Устанавливаем браузерный User-Agent, если указан/нужен
+    options: Dict[str, Any] = {
+        "verify": not insecure,
+    }
+    headers: Dict[str, str] = {"Accept": "application/json"}
     if user_agent:
-        session.headers.update({"User-Agent": user_agent})
-    # Гарантируем корректные заголовки по умолчанию
-    session.headers.setdefault("Accept", "application/json")
+        headers["User-Agent"] = user_agent
+    # Передаём заголовки только если они определены (jira объединит их с дефолтными)
+    if headers:
+        options["headers"] = headers
 
     if user and token:
         # Базовая аутентификация (часто для DC/Server с PAT в качестве пароля)
-        return JIRA(server=jira_base, basic_auth=(user, token), session=session)
+        return JIRA(server=jira_base, options=options, basic_auth=(user, token))
     elif token:
         # Token Auth (API Token)
-        return JIRA(server=jira_base, token_auth=token, session=session)
+        return JIRA(server=jira_base, options=options, token_auth=token)
     else:
         raise typer.BadParameter("Не заданы учётные данные для Jira. Укажите --jira-token или --jira-user/--jira-token")
 
