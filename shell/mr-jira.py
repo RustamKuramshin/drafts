@@ -27,7 +27,7 @@ mr-jira.py — CLI-инструмент для извлечения Jira-зад�
 
 Примеры:
 - Получить список задач:
-    ./mr-jira.py get issues "https://gitlab.example.com/group/proj/-/merge_requests/123"
+    ./mr-jira.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808
 - Включить подробный вывод:
     ./mr-jira.py get issues <MR_URL> -v
 """
