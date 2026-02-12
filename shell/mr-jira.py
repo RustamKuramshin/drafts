@@ -201,9 +201,10 @@ def build_gitlab_client(base_url: str, token: str, insecure: bool = False) -> An
 
 
 def get_mr_commits(gl: Any, host: str, project_path: str, iid: str) -> List[Dict[str, Any]]:
-    # В GitLab API id проекта может быть urlencoded path
-    enc_path = urlencode_path(project_path)
-    project = gl.projects.get(enc_path)
+    # В python-gitlab НЕ нужно вручную url-энкодить путь проекта.
+    # Библиотека сама корректно кодирует идентификатор (slug/namespace/project).
+    # Ручной энкодинг приводит к двойному кодированию ("%" -> "%25") и 404.
+    project = gl.projects.get(project_path)
     mr = project.mergerequests.get(iid)
     # В python-gitlab метод .commits() возвращает все коммиты MR
     commits = mr.commits()
