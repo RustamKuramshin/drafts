@@ -629,14 +629,18 @@ def create_release(
     # (python-jira session накапливает cookies, что вызывает XSRF check failed)
     logging.info("Создаём релиз в Jira: %s (проект: %s)", version_name, jira_project)
     try:
-        _jira_headers = {
+        # Формируем заголовки для обхода XSRF (аналогично браузерному запросу)
+        jira_origin = jira_base.rstrip('/')
+        mutating_headers = {
+            "Authorization": f"Bearer {jira_token}",
             "Accept": "application/json",
             "Content-Type": "application/json",
             "X-Atlassian-Token": "no-check",
-            "Authorization": f"Bearer {jira_token}",
+            "X-Requested-With": "XMLHttpRequest",
+            "Origin": jira_origin,
+            "User-Agent": user_agent,
         }
-        if user_agent:
-            _jira_headers["User-Agent"] = user_agent
+
         _create_payload = {
             "name": version_name,
             "project": jira_project,
@@ -646,27 +650,9 @@ def create_release(
             "released": False,
         }
 
-        JIRA_HEADERS = {
-            "Authorization": f"Bearer {jira_token}",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-
-            # 🔑 критично для XSRF
-            "X-Atlassian-Token": "no-check",
-            "X-Requested-With": "XMLHttpRequest",
-            "Origin": "https://track.magnit.ru",
-
-            # 🧠 маскируемся под браузер
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/121.0.0.0 Safari/537.36"
-            ),
-        }
-
         _resp = _requests.post(
-            f"{jira_base.rstrip('/')}/rest/api/2/version",
-            headers=JIRA_HEADERS,
+            f"{jira_origin}/rest/api/2/version",
+            headers=mutating_headers,
             json=_create_payload,
             verify=not insecure,
         )
@@ -695,8 +681,8 @@ def create_release(
                 existing.append(version_name)
                 _update_payload = {"fields": {"fixVersions": [{"name": n} for n in existing]}}
                 _resp = _requests.put(
-                    f"{jira_base.rstrip('/')}/rest/api/2/issue/{issue.key}",
-                    headers=_jira_headers,
+                    f"{jira_origin}/rest/api/2/issue/{issue.key}",
+                    headers=mutating_headers,
                     json=_update_payload,
                     verify=not insecure,
                 )
@@ -704,6 +690,8 @@ def create_release(
             print(f"- {issue.key}: fixVersion установлен → {version_name}")
         except _requests.HTTPError as e:
             err_console.print(f"Ошибка при обновлении {issue.key}: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                err_console.print(f"Response: {e.response.text}")
         except JIRAError as e:
             err_console.print(f"Ошибка при обновлении {issue.key}: {e}")
 
