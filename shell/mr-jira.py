@@ -243,18 +243,19 @@ def build_jira_client(
     if user_agent:
         headers["User-Agent"] = user_agent
 
-    if user and token:
-        # Базовая аутентификация (часто для DC/Server с PAT в качестве пароля)
-        options["headers"] = headers
-        return JIRA(server=jira_base, options=options, basic_auth=(user, token))
-    elif token:
-        # Bearer Token Auth — устанавливаем заголовок напрямую, аналогично shell-скрипту:
+    if token and not user:
+        # Bearer Token Auth — приоритетный способ аутентификации (только токен, без user).
+        # Устанавливаем заголовок напрямую, аналогично shell-скрипту:
         #   curl -H "Authorization: Bearer ${JIRA_TOKEN}"
         # Это надёжнее, чем token_auth= в python-jira, который может вызывать
         # 401 на Jira Server/DC.
         headers["Authorization"] = f"Bearer {token}"
         options["headers"] = headers
         return JIRA(server=jira_base, options=options)
+    elif user and token:
+        # Базовая аутентификация (если явно указаны и user, и token)
+        options["headers"] = headers
+        return JIRA(server=jira_base, options=options, basic_auth=(user, token))
     else:
         raise typer.BadParameter("Не заданы учётные данные для Jira. Укажите --jira-token или --jira-user/--jira-token")
 
