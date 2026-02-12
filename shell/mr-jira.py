@@ -283,8 +283,11 @@ def render_output(
     print(f"Jira issues in MR:")
     print(f"MR - {mr_url}")
     print()
-    for i in sorted_issues:
-        print(f"- {i.as_url(jira_base)}  ({i.issuetype}) — {i.summary}")
+    for idx, i in enumerate(sorted_issues):
+        if idx > 0:
+            print()
+        print(f"- ({i.issuetype}) {i.summary}")
+        print(f"  {i.as_url(jira_base)}")
 
 
 # ============================ Команда: get issues ===============================
