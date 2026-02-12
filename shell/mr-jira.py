@@ -35,6 +35,7 @@ mr-jira.py — CLI-инструмент для извлечения Jira-зад�
     ./mr-jira.py get issues <MR_URL> -v
 - Создать релиз в Jira:
     ./mr-jira.py create release https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT" --gitlab-tag "1.18.28"
+    ./mr-jira.py create release https://gitlab.platform.corp/magnitonline/mm/backend/mm-core-bff/-/merge_requests/623 --jira-project "MMBT"
     ./mr-jira.py create release <MR_URL> --jira-project "MMBT"
 """
 
