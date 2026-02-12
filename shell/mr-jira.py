@@ -33,6 +33,9 @@ mr-jira.py — CLI-инструмент для извлечения Jira-зад�
     ./mr-jira.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT"
 - Включить подробный вывод:
     ./mr-jira.py get issues <MR_URL> -v
+- Создать релиз в Jira:
+    ./mr-jira.py create release <MR_URL> --jira-project "MMBT" --gitlab-tag "1.28.0"
+    ./mr-jira.py create release <MR_URL> --jira-project "MMBT"
 """
 
 from __future__ import annotations
@@ -43,6 +46,7 @@ import sys
 import logging
 import urllib.parse
 from dataclasses import dataclass
+from datetime import date
 from typing import List, Optional, Sequence, Tuple, Dict, Any, Set
 
 def _import_or_exit(module: str, pkg_hint: str) -> Any:
@@ -85,6 +89,8 @@ except Exception:
 app = typer.Typer(help="Инструменты для работы с GitLab MR и Jira")
 get_app = typer.Typer(help="Команды получения данных (get)")
 app.add_typer(get_app, name="get")
+create_app = typer.Typer(help="Команды создания (create)")
+app.add_typer(create_app, name="create")
 
 console = Console(stderr=False)
 err_console = Console(stderr=True, style="bold red")
@@ -206,6 +212,39 @@ def get_mr_commits(gl: Any, host: str, project_path: str, iid: str) -> List[Dict
     ]
 
 
+def get_project_tags(gl: Any, project_path: str) -> List[str]:
+    """Получает список тэгов проекта в GitLab и возвращает их имена."""
+    project = gl.projects.get(project_path)
+    tags = project.tags.list(all=True)
+    return [t.name for t in tags]
+
+
+def parse_semver(tag: str) -> Optional[Tuple[int, int, int]]:
+    """Парсит semver-тэг (с опциональным префиксом 'v'). Возвращает (major, minor, patch) или None."""
+    m = re.match(r"^v?(\d+)\.(\d+)\.(\d+)$", tag)
+    if not m:
+        return None
+    return int(m.group(1)), int(m.group(2)), int(m.group(3))
+
+
+def compute_next_tag(tags: List[str]) -> str:
+    """Вычисляет следующий тэг по semver (инкремент minor-версии).
+
+    Из списка тэгов выбирается максимальный по semver, затем увеличивается minor и patch сбрасывается в 0.
+    """
+    semver_tags: List[Tuple[int, int, int]] = []
+    for t in tags:
+        sv = parse_semver(t)
+        if sv:
+            semver_tags.append(sv)
+    if not semver_tags:
+        raise typer.BadParameter("Не найдено semver-тэгов в проекте GitLab. Укажите тэг явно через --gitlab-tag.")
+    semver_tags.sort()
+    latest = semver_tags[-1]
+    next_ver = (latest[0], latest[1] + 1, 0)
+    return f"{next_ver[0]}.{next_ver[1]}.{next_ver[2]}"
+
+
 def build_jira_client(
     jira_base: str,
     token: Optional[str],
@@ -221,10 +260,12 @@ def build_jira_client(
         headers["User-Agent"] = user_agent
 
     if token and not user:
+        logging.info("Use Bearer token")
         headers["Authorization"] = f"Bearer {token}"
         options["headers"] = headers
         return JIRA(server=jira_base, options=options)
     elif user and token:
+        logging.info("Use basic auth")
         options["headers"] = headers
         return JIRA(server=jira_base, options=options, basic_auth=(user, token))
     else:
@@ -289,6 +330,102 @@ def render_output(
             print()
         print(f"- ({i.issuetype}) {i.summary}")
         print(f"  {i.as_url(jira_base)}")
+
+
+# ============================ Общая логика: извлечение issue из MR ===============
+
+
+def extract_issues_from_mr(
+    mr_url: str,
+    gitlab_token: str,
+    gitlab_url_override: Optional[str],
+    jira_base: str,
+    jira_user: Optional[str],
+    jira_token: Optional[str],
+    user_agent: str,
+    jira_key_re: str,
+    ignore_pattern: List[str],
+    jira_project: Optional[str],
+    insecure: bool,
+) -> Tuple[str, str, List[JiraRootIssue], JIRA, Any]:
+    """Извлекает корневые Jira-issue из коммитов MR.
+
+    Возвращает: (project_path, project_name, root_issues, jira_client, gl)
+    """
+    host, project_path, iid = parse_mr_url(mr_url)
+    if not gitlab_token:
+        raise typer.BadParameter("Не задан токен GitLab. Укажите --gitlab-token или env GITLAB_TOKEN")
+
+    gitlab_base = gitlab_url_override or f"https://{host}"
+    key_rx, ignore_rx = compile_regexps(jira_key_re, ignore_pattern)
+
+    logging.debug("GitLab host: %s, project: %s, iid: %s", host, project_path, iid)
+    # GitLab
+    try:
+        gl = build_gitlab_client(gitlab_base, gitlab_token, insecure=insecure)
+    except Exception as e:
+        err_console.print(f"Не удалось аутентифицироваться в GitLab: {e}")
+        raise typer.Exit(code=2)
+
+    # Получаем коммиты MR
+    try:
+        commits = get_mr_commits(gl, host, project_path, iid)
+    except Exception as e:
+        err_console.print(f"Ошибка при получении коммитов MR: {e}")
+        raise typer.Exit(code=3)
+
+    logging.info("Найдено коммитов в MR: %d", len(commits))
+
+    # Извлекаем Jira-ключи
+    found_keys: Set[str] = set()
+    for c in commits:
+        title = c.get("title") or ""
+        message = c.get("message") or ""
+        first_line = title or (message.splitlines()[0] if message else "")
+        if is_ignored_commit(first_line, ignore_rx):
+            logging.debug("Игнорируем коммит: %s", first_line)
+            continue
+        keys = extract_jira_keys_from_text([title, message], key_rx)
+        if keys:
+            logging.debug("Коммит: %s — ключи: %s", first_line, ", ".join(sorted(keys)))
+        found_keys.update(keys)
+
+    # Фильтрация по проекту Jira (если указан)
+    if jira_project:
+        project_prefix = jira_project.upper() + "-"
+        filtered = {k for k in found_keys if k.startswith(project_prefix)}
+        logging.info("Фильтр по проекту %s: %d из %d ключей", jira_project, len(filtered), len(found_keys))
+        found_keys = filtered
+
+    if not found_keys:
+        console.print("No Jira issues found in commits for MR:")
+        console.print(mr_url)
+        raise typer.Exit(code=0)
+
+    logging.info("Уникальные Jira-ключи: %d", len(found_keys))
+
+    # Jira: резолвим корневые задачи
+    try:
+        jira_client = build_jira_client(
+            jira_base,
+            token=jira_token,
+            user=jira_user,
+            insecure=insecure,
+            user_agent=user_agent,
+        )
+    except Exception as e:
+        err_console.print(f"Не удалось подключиться к Jira: {e}")
+        raise typer.Exit(code=4)
+
+    root_map: Dict[str, JiraRootIssue] = {}
+    for key in sorted(found_keys):
+        root = resolve_root_issue(jira_client, key)
+        if root.key not in root_map:
+            root_map[root.key] = root
+
+    root_issues = list(root_map.values())
+    project_name = project_path.rsplit("/", 1)[-1]
+    return project_path, project_name, root_issues, jira_client, gl
 
 
 # ============================ Команда: get issues ===============================
@@ -363,82 +500,159 @@ def get_issues(
         except Exception:
             pass
 
-    host, project_path, iid = parse_mr_url(mr_url)
-    if not gitlab_token:
-        raise typer.BadParameter("Не задан токен GitLab. Укажите --gitlab-token или env GITLAB_TOKEN")
-
-    gitlab_base = gitlab_url_override or f"https://{host}"
-    key_rx, ignore_rx = compile_regexps(jira_key_re, ignore_pattern)
-
-    logging.debug("GitLab host: %s, project: %s, iid: %s", host, project_path, iid)
-    # GitLab
-    try:
-        gl = build_gitlab_client(gitlab_base, gitlab_token, insecure=insecure)
-    except Exception as e:
-        err_console.print(f"Не удалось аутентифицироваться в GitLab: {e}")
-        raise typer.Exit(code=2)
-
-    # Получаем коммиты MR
-    try:
-        commits = get_mr_commits(gl, host, project_path, iid)
-    except Exception as e:
-        err_console.print(f"Ошибка при получении коммитов MR: {e}")
-        raise typer.Exit(code=3)
-
-    logging.info("Найдено коммитов в MR: %d", len(commits))
-
-    # Извлекаем Jira-ключи
-    found_keys: Set[str] = set()
-    for c in commits:
-        title = c.get("title") or ""
-        message = c.get("message") or ""
-        first_line = title or (message.splitlines()[0] if message else "")
-        if is_ignored_commit(first_line, ignore_rx):
-            logging.debug("Игнорируем коммит: %s", first_line)
-            continue
-        keys = extract_jira_keys_from_text([title, message], key_rx)
-        if keys:
-            logging.debug("Коммит: %s — ключи: %s", first_line, ", ".join(sorted(keys)))
-        found_keys.update(keys)
-
-    # Фильтрация по проекту Jira (если указан)
-    if jira_project:
-        project_prefix = jira_project.upper() + "-"
-        filtered = {k for k in found_keys if k.startswith(project_prefix)}
-        logging.info("Фильтр по проекту %s: %d из %d ключей", jira_project, len(filtered), len(found_keys))
-        found_keys = filtered
-
-    if not found_keys:
-        console.print("No Jira issues found in commits for MR:")
-        console.print(mr_url)
-        raise typer.Exit(code=0)
-
-    logging.info("Уникальные Jira-ключи: %d", len(found_keys))
-
-    # Jira: резолвим корневые задачи
-    try:
-        jira_client = build_jira_client(
-            jira_base,
-            token=jira_token,
-            user=jira_user,
-            insecure=insecure,
-            user_agent=user_agent,
-        )
-    except Exception as e:
-        err_console.print(f"Не удалось подключиться к Jira: {e}")
-        raise typer.Exit(code=4)
-
-    root_map: Dict[str, JiraRootIssue] = {}
-    for key in sorted(found_keys):
-        root = resolve_root_issue(jira_client, key)
-        # Сохраняем первую встреченную информацию о root key
-        if root.key not in root_map:
-            root_map[root.key] = root
-
-    root_issues = list(root_map.values())
-    # Название проекта — последний сегмент project_path
-    project_name = project_path.rsplit("/", 1)[-1]
+    project_path, project_name, root_issues, jira_client, gl = extract_issues_from_mr(
+        mr_url=mr_url,
+        gitlab_token=gitlab_token,
+        gitlab_url_override=gitlab_url_override,
+        jira_base=jira_base,
+        jira_user=jira_user,
+        jira_token=jira_token,
+        user_agent=user_agent,
+        jira_key_re=jira_key_re,
+        ignore_pattern=ignore_pattern,
+        jira_project=jira_project,
+        insecure=insecure,
+    )
     render_output(root_issues, jira_base=jira_base, fmt=fmt.lower(), mr_url=mr_url, project_name=project_name)
+
+
+# ============================ Команда: create release ===========================
+
+
+@create_app.command("release")
+def create_release(
+    mr_url: str = typer.Argument(..., help="Ссылка на MR в GitLab (https://host/group/proj/-/merge_requests/<iid>)"),
+    # GitLab auth
+    gitlab_token: Optional[str] = typer.Option(
+        default=os.getenv("GITLAB_TOKEN"),
+        help="Токен GitLab (env: GITLAB_TOKEN)",
+        rich_help_panel="GitLab",
+    ),
+    gitlab_url_override: Optional[str] = typer.Option(
+        default=None,
+        help="База GitLab API/Host (по умолчанию берётся из MR-URL).",
+        rich_help_panel="GitLab",
+    ),
+    gitlab_tag: Optional[str] = typer.Option(
+        default=None,
+        help="Следующий тэг (semver) для названия релиза. Если не указан — вычисляется автоматически из тэгов проекта в GitLab.",
+        rich_help_panel="GitLab",
+    ),
+    # Jira auth
+    jira_base: str = typer.Option(
+        default=DEFAULT_JIRA_BASE,
+        help=f"База Jira (env: JIRA_BASE) [по умолчанию: {DEFAULT_JIRA_BASE}]",
+        rich_help_panel="Jira",
+    ),
+    jira_user: Optional[str] = typer.Option(
+        default=os.getenv("JIRA_USER"), help="Пользователь Jira (если используется basic_auth)", rich_help_panel="Jira"
+    ),
+    jira_token: Optional[str] = typer.Option(
+        default=os.getenv("JIRA_TOKEN"), help="API-токен Jira (env: JIRA_TOKEN)", rich_help_panel="Jira"
+    ),
+    user_agent: str = typer.Option(
+        default=DEFAULT_USER_AGENT,
+        help="User-Agent для запросов к Jira.",
+        rich_help_panel="Jira",
+    ),
+    # Jira project — обязательный для create release
+    jira_project: str = typer.Option(
+        ...,
+        help="Проект Jira (например MMBT). Обязателен для создания релиза.",
+        rich_help_panel="Jira",
+    ),
+    # Поведение
+    jira_key_re: str = typer.Option(
+        default=DEFAULT_JIRA_KEY_RE,
+        help=f"Regexp для Jira-ключей [по умолчанию: {DEFAULT_JIRA_KEY_RE}]",
+    ),
+    ignore_pattern: List[str] = typer.Option(
+        default=list(DEFAULT_IGNORE_PATTERNS),
+        help="Regexp-паттерны для игнорирования коммитов по первой строке",
+    ),
+    insecure: bool = typer.Option(
+        default=True,
+        help="Игнорировать проверку SSL-сертификатов (как curl -k).",
+    ),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Подробный вывод"),
+) -> None:
+    """Создать релиз (версию) в Jira и включить в него найденные issue из MR.
+
+    Название релиза: <имя_проекта_GitLab>:<тэг> (например ke-backend:1.28.0).
+    Если --gitlab-tag не указан, следующий тэг вычисляется автоматически из тэгов проекта.
+    """
+    setup_logging(verbose)
+
+    if insecure:
+        try:
+            import urllib3  # type: ignore
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        except Exception:
+            pass
+
+    project_path, project_name, root_issues, jira_client, gl = extract_issues_from_mr(
+        mr_url=mr_url,
+        gitlab_token=gitlab_token,
+        gitlab_url_override=gitlab_url_override,
+        jira_base=jira_base,
+        jira_user=jira_user,
+        jira_token=jira_token,
+        user_agent=user_agent,
+        jira_key_re=jira_key_re,
+        ignore_pattern=ignore_pattern,
+        jira_project=jira_project,
+        insecure=insecure,
+    )
+
+    # Определяем тэг
+    tag = gitlab_tag
+    if not tag:
+        logging.info("Тэг не указан, вычисляем следующий из тэгов проекта GitLab...")
+        try:
+            tags = get_project_tags(gl, project_path)
+        except Exception as e:
+            err_console.print(f"Ошибка при получении тэгов GitLab: {e}")
+            raise typer.Exit(code=5)
+        tag = compute_next_tag(tags)
+        logging.info("Вычисленный следующий тэг: %s", tag)
+
+    version_name = f"{project_name}:{tag}"
+    start_date = date.today().isoformat()
+    description = "Создан автоматически"
+
+    # Создаём релиз (версию) в Jira
+    logging.info("Создаём релиз в Jira: %s (проект: %s)", version_name, jira_project)
+    try:
+        version = jira_client.create_version(
+            name=version_name,
+            project=jira_project,
+            description=description,
+            startDate=start_date,
+        )
+    except JIRAError as e:
+        err_console.print(f"Ошибка при создании релиза в Jira: {e}")
+        raise typer.Exit(code=6)
+
+    print(f"Создан релиз: {version_name}")
+    print(f"  Проект Jira: {jira_project}")
+    print(f"  Дата начала: {start_date}")
+    print(f"  Описание: {description}")
+    print()
+
+    # Привязываем issue к релизу (устанавливаем fixVersions)
+    for issue in sorted(root_issues, key=lambda x: x.key):
+        try:
+            jira_issue = jira_client.issue(issue.key, fields="fixVersions")
+            existing = [v.name for v in jira_issue.fields.fixVersions] if jira_issue.fields.fixVersions else []
+            if version_name not in existing:
+                existing.append(version_name)
+                jira_issue.update(fields={"fixVersions": [{"name": n} for n in existing]})
+            print(f"- {issue.key}: fixVersion установлен → {version_name}")
+        except JIRAError as e:
+            err_console.print(f"Ошибка при обновлении {issue.key}: {e}")
+
+    print()
+    print(f"Готово. В релиз {version_name} включено {len(root_issues)} issue.")
 
 
 # ============================ Точка входа =======================================
