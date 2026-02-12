@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="mr-jira" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+  <configuration default="false" name="relman" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
     <module name="drafts" />
     <option name="ENV_FILES" value="" />
     <option name="INTERPRETER_OPTIONS" value="" />
@@ -13,7 +13,7 @@
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <option name="RUN_TOOL" value="" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/shell/mr-jira.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/shell/relman.py" />
     <option name="PARAMETERS" value="create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql --from &quot;development&quot; --to &quot;stage&quot; --jira-project &quot;MMBT&quot;" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />

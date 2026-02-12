@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-mr-jira.py — CLI-инструмент для извлечения Jira-задач из Merge Request в GitLab.
+relman.py — CLI-инструмент для извлечения Jira-задач из Merge Request в GitLab.
 
 Ключевые возможности:
 - Подключение к GitLab и Jira с аутентификацией по токенам/учётным данным.
@@ -12,8 +12,8 @@ mr-jira.py — CLI-инструмент для извлечения Jira-зад�
 - Удобный CLI с иерархией команд: `get issues <MR_URL>` и богатыми опциями/справкой.
 
 Требуемые библиотеки (установите при необходимости):
-  conda create -n mr-jira python=3.12
-  conda activate mr-jira
+  conda create -n relman python=3.12
+  conda activate relman
   python -m pip install python-gitlab
   python -m pip install "typer[all]"
   python -m pip install jira
@@ -27,19 +27,19 @@ mr-jira.py — CLI-инструмент для извлечения Jira-зад�
 
 Примеры:
 - Помощь:
-    ./mr-jira.py get issues --help
+    ./relman.py get issues --help
 - Получить список задач:
-    ./mr-jira.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808
-    ./mr-jira.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT"
+    ./relman.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808
+    ./relman.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT"
 - Включить подробный вывод:
-    ./mr-jira.py get issues <MR_URL> -v
+    ./relman.py get issues <MR_URL> -v
 - Создать релиз в Jira:
-    ./mr-jira.py create release https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT" --gitlab-tag "1.18.28"
-    ./mr-jira.py create release https://gitlab.platform.corp/magnitonline/mm/backend/mm-core-bff/-/merge_requests/623 --jira-project "MMBT"
-    ./mr-jira.py create release <MR_URL> --jira-project "MMBT"
+    ./relman.py create release https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT" --gitlab-tag "1.18.28"
+    ./relman.py create release https://gitlab.platform.corp/magnitonline/mm/backend/mm-core-bff/-/merge_requests/623 --jira-project "MMBT"
+    ./relman.py create release <MR_URL> --jira-project "MMBT"
 - Создать MR в GitLab с упоминанием Jira-задач из коммитов:
-    ./mr-jira.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql --from "development" --to "stage"
-    ./mr-jira.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-payment-service --from "development" --to "stage" --jira-project "MMBT" --with-release
+    ./relman.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql --from "development" --to "stage"
+    ./relman.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-payment-service --from "development" --to "stage" --jira-project "MMBT" --with-release
 """
 
 from __future__ import annotations
@@ -740,8 +740,6 @@ def get_issues(
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Подробный вывод"),
 ) -> None:
     """Извлечь корневые Jira-задачи из коммитов Merge Request и вывести список задач.
-
-    Логика соответствует shell-скрипту mr-jira.sh, но реализована на Python с удобным CLI.
     """
     setup_logging(verbose)
 
