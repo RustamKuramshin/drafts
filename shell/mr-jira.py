@@ -884,8 +884,8 @@ def create_mr(
         comparison = project.repository_compare(target_branch, source_branch)
         compare_commits = [
             {
-                "title": getattr(c, "title", "") or "",
-                "message": getattr(c, "message", "") or "",
+                "title": c.get("title", "") or "",
+                "message": c.get("message", "") or "",
             }
             for c in comparison.get('commits', [])
         ]
