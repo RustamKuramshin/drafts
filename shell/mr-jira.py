@@ -26,8 +26,11 @@ mr-jira.py — CLI-инструмент для извлечения Jira-зад�
 - USER_AGENT — User-Agent для Jira-запросов (при использовании прямого HTTP — не требуется с библиотеками)
 
 Примеры:
+- Помощь:
+    ./mr-jira.py get issues --help
 - Получить список задач:
     ./mr-jira.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808
+    ./mr-jira.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808 --jira-project "MMBT"
 - Включить подробный вывод:
     ./mr-jira.py get issues <MR_URL> -v
 """
@@ -367,6 +370,11 @@ def get_issues(
         default=list(DEFAULT_IGNORE_PATTERNS),
         help="Regexp-паттерны для игнорирования коммитов по первой строке (можно указывать несколько)",
     ),
+    jira_project: Optional[str] = typer.Option(
+        default=None,
+        help="Фильтр по проекту Jira (например MMBT). Если указан, в вывод попадут только issue этого проекта.",
+        rich_help_panel="Jira",
+    ),
     fmt: str = typer.Option(
         default=OutputFormat.MD,
         case_sensitive=False,
@@ -430,6 +438,13 @@ def get_issues(
         if keys:
             logging.debug("Коммит: %s — ключи: %s", first_line, ", ".join(sorted(keys)))
         found_keys.update(keys)
+
+    # Фильтрация по проекту Jira (если указан)
+    if jira_project:
+        project_prefix = jira_project.upper() + "-"
+        filtered = {k for k in found_keys if k.startswith(project_prefix)}
+        logging.info("Фильтр по проекту %s: %d из %d ключей", jira_project, len(filtered), len(found_keys))
+        found_keys = filtered
 
     if not found_keys:
         console.print("No Jira issues found in commits for MR:")
