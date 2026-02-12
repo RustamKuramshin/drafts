@@ -40,13 +40,11 @@ from __future__ import annotations
 import os
 import re
 import sys
-import json
 import logging
 import urllib.parse
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Sequence, Tuple, Dict, Any, Set
+from typing import List, Optional, Sequence, Tuple, Dict, Any, Set
 
-# Ленивая загрузка внешних зависимостей с дружественными сообщениями об ошибках
 def _import_or_exit(module: str, pkg_hint: str) -> Any:
     try:
         return __import__(module)
@@ -72,8 +70,6 @@ except Exception:
     print("Требуется пакет 'rich'. Установите: pip install rich", file=sys.stderr)
     raise
 
-
-# Популярные клиенты GitLab и Jira
 try:
     import gitlab  # type: ignore
 except Exception:
@@ -154,8 +150,6 @@ def parse_mr_url(mr_url: str) -> Tuple[str, str, str]:
     except Exception:
         raise typer.BadParameter(f"Не удалось распарсить MR URL: {mr_url}")
 
-    # Извлечение iid и project_path
-    # path: /group/subgroup/project/-/merge_requests/623
     m = re.match(r"^/(.+)/-/merge_requests/(\d+)(?:/.*)?$", path)
     if not m or not host:
         raise typer.BadParameter(f"Ожидался формат 'https://HOST/<path>/-/merge_requests/<iid>': {mr_url}")
@@ -202,13 +196,8 @@ def build_gitlab_client(base_url: str, token: str, insecure: bool = False) -> An
 
 
 def get_mr_commits(gl: Any, host: str, project_path: str, iid: str) -> List[Dict[str, Any]]:
-    # В python-gitlab НЕ нужно вручную url-энкодить путь проекта.
-    # Библиотека сама корректно кодирует идентификатор (slug/namespace/project).
-    # Ручной энкодинг приводит к двойному кодированию ("%" -> "%25") и 404.
     project = gl.projects.get(project_path)
     mr = project.mergerequests.get(iid)
-    # В python-gitlab метод .commits() возвращает список объектов ProjectCommit
-    # У этих объектов есть атрибуты .title и .message; они НЕ являются dict-ами.
     commits = mr.commits()
     return [
         {
@@ -226,15 +215,6 @@ def build_jira_client(
     insecure: bool = False,
     user_agent: Optional[str] = None,
 ) -> JIRA:
-    """Создаёт клиента Jira с настраиваемым User-Agent и проверкой TLS.
-
-    Для Jira Server/DC с Personal Access Token (PAT) используется Bearer-аутентификация
-    через заголовок Authorization, как в curl -H "Authorization: Bearer $TOKEN".
-    Параметр token_auth в python-jira может некорректно работать с некоторыми версиями
-    Jira Server (приводит к 401 "Basic Authentication Failure"), поэтому заголовок
-    устанавливается вручную.
-    """
-
     options: Dict[str, Any] = {
         "verify": not insecure,
     }
@@ -243,16 +223,10 @@ def build_jira_client(
         headers["User-Agent"] = user_agent
 
     if token and not user:
-        # Bearer Token Auth — приоритетный способ аутентификации (только токен, без user).
-        # Устанавливаем заголовок напрямую, аналогично shell-скрипту:
-        #   curl -H "Authorization: Bearer ${JIRA_TOKEN}"
-        # Это надёжнее, чем token_auth= в python-jira, который может вызывать
-        # 401 на Jira Server/DC.
         headers["Authorization"] = f"Bearer {token}"
         options["headers"] = headers
         return JIRA(server=jira_base, options=options)
     elif user and token:
-        # Базовая аутентификация (если явно указаны и user, и token)
         options["headers"] = headers
         return JIRA(server=jira_base, options=options, basic_auth=(user, token))
     else:
@@ -308,8 +282,7 @@ def render_output(
 
     if fmt == OutputFormat.MD:
         md_lines = [
-            f"# Jira issues in MR:\n{mr_url}\n",
-            f"Found {len(issues)} root issue(s):\n",
+            f"# Jira issues in MR:\n{mr_url}\n"
         ]
         for i in sorted(issues, key=lambda x: x.key):
             md_lines.append(f"- {i.as_url(jira_base)}  ({i.issuetype}) — {i.summary}")
@@ -392,8 +365,6 @@ def get_issues(
     """
     setup_logging(verbose)
 
-    # Подавляем предупреждения urllib3 об отключённой проверке сертификатов,
-    # чтобы не засорять вывод при корпоративных сертификатах.
     if insecure:
         try:
             import urllib3  # type: ignore
