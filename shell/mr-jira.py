@@ -47,6 +47,7 @@ import os
 import re
 import sys
 import logging
+import base64
 import urllib.parse
 from dataclasses import dataclass
 from datetime import date
@@ -563,6 +564,121 @@ def extract_issues_from_mr(
     return project_path, project_name, root_issues, jira_client, gl
 
 
+# ============================ Логика создания релиза ============================
+
+
+def execute_create_release(
+    gl: Any,
+    project_path: str,
+    project_name: str,
+    root_issues: List[JiraRootIssue],
+    jira_client: JIRA,
+    jira_base: str,
+    jira_token: Optional[str],
+    jira_user: Optional[str],
+    jira_project: str,
+    gitlab_tag: Optional[str],
+    user_agent: str,
+    insecure: bool,
+) -> None:
+    """Выполняет создание релиза в Jira и привязку к нему задач."""
+    # Определяем тэг
+    tag = gitlab_tag
+    if not tag:
+        logging.info("Тэг не указан, вычисляем следующий из тэгов проекта GitLab...")
+        try:
+            tags = get_project_tags(gl, project_path)
+        except Exception as e:
+            err_console.print(f"Ошибка при получении тэгов GitLab: {e}")
+            raise typer.Exit(code=5)
+        tag = compute_next_tag(tags)
+        logging.info("Вычисленный следующий тэг: %s", tag)
+
+    version_name = f"{project_name}:{tag}"
+    start_date = date.today().isoformat()
+    description = "Создан автоматически"
+
+    # Создаём релиз (версию) в Jira через прямой REST-вызов
+    logging.info("Создаём релиз в Jira: %s (проект: %s)", version_name, jira_project)
+    try:
+        jira_origin = jira_base.rstrip('/')
+
+        # Решаем вопрос с авторизацией для прямых запросов
+        if jira_user and jira_token:
+            auth_str = f"{jira_user}:{jira_token}"
+            encoded_auth = base64.b64encode(auth_str.encode()).decode()
+            auth_header = f"Basic {encoded_auth}"
+        else:
+            auth_header = f"Bearer {jira_token}"
+
+        mutating_headers = {
+            "Authorization": auth_header,
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "X-Atlassian-Token": "no-check",
+            "X-Requested-With": "XMLHttpRequest",
+            "Origin": jira_origin,
+            "User-Agent": user_agent,
+        }
+
+        _create_payload = {
+            "name": version_name,
+            "project": jira_project,
+            "description": description,
+            "startDate": start_date,
+            "archived": False,
+            "released": False,
+        }
+
+        _resp = _requests.post(
+            f"{jira_origin}/rest/api/2/version",
+            headers=mutating_headers,
+            json=_create_payload,
+            verify=not insecure,
+        )
+        _resp.raise_for_status()
+    except _requests.HTTPError as e:
+        err_console.print(f"Ошибка при создании релиза в Jira: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            err_console.print(f"Response: {e.response.text}")
+        raise typer.Exit(code=6)
+    except Exception as e:
+        err_console.print(f"Ошибка при создании релиза в Jira: {e}")
+        raise typer.Exit(code=6)
+
+    print(f"Создан релиз: {version_name}")
+    print(f"  Проект Jira: {jira_project}")
+    print(f"  Дата начала: {start_date}")
+    print(f"  Описание: {description}")
+    print()
+
+    # Привязываем issue к релизу (устанавливаем fixVersions) через прямые REST-вызовы
+    for issue in sorted(root_issues, key=lambda x: x.key):
+        try:
+            jira_issue = jira_client.issue(issue.key, fields="fixVersions")
+            existing = [v.name for v in jira_issue.fields.fixVersions] if jira_issue.fields.fixVersions else []
+            if version_name not in existing:
+                existing.append(version_name)
+                _update_payload = {"fields": {"fixVersions": [{"name": n} for n in existing]}}
+                _resp = _requests.put(
+                    f"{jira_origin}/rest/api/2/issue/{issue.key}",
+                    headers=mutating_headers,
+                    json=_update_payload,
+                    verify=not insecure,
+                )
+                _resp.raise_for_status()
+            print(f"- {issue.key}: fixVersion установлен → {version_name}")
+        except _requests.HTTPError as e:
+            err_console.print(f"Ошибка при обновлении {issue.key}: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                err_console.print(f"Response: {e.response.text}")
+        except JIRAError as e:
+            err_console.print(f"Ошибка при обновлении {issue.key}: {e}")
+
+    print()
+    print(f"Готово. В релиз {version_name} включено {len(root_issues)} issue.")
+
+
 # ============================ Команда: get issues ===============================
 
 
@@ -739,94 +855,20 @@ def create_release(
         insecure=insecure,
     )
 
-    # Определяем тэг
-    tag = gitlab_tag
-    if not tag:
-        logging.info("Тэг не указан, вычисляем следующий из тэгов проекта GitLab...")
-        try:
-            tags = get_project_tags(gl, project_path)
-        except Exception as e:
-            err_console.print(f"Ошибка при получении тэгов GitLab: {e}")
-            raise typer.Exit(code=5)
-        tag = compute_next_tag(tags)
-        logging.info("Вычисленный следующий тэг: %s", tag)
-
-    version_name = f"{project_name}:{tag}"
-    start_date = date.today().isoformat()
-    description = "Создан автоматически"
-
-    # Создаём релиз (версию) в Jira через прямой REST-вызов
-    # (python-jira session накапливает cookies, что вызывает XSRF check failed)
-    logging.info("Создаём релиз в Jira: %s (проект: %s)", version_name, jira_project)
-    try:
-        # Формируем заголовки для обхода XSRF (аналогично браузерному запросу)
-        jira_origin = jira_base.rstrip('/')
-        mutating_headers = {
-            "Authorization": f"Bearer {jira_token}",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "X-Atlassian-Token": "no-check",
-            "X-Requested-With": "XMLHttpRequest",
-            "Origin": jira_origin,
-            "User-Agent": user_agent,
-        }
-
-        _create_payload = {
-            "name": version_name,
-            "project": jira_project,
-            "description": description,
-            "startDate": start_date,
-            "archived": False,
-            "released": False,
-        }
-
-        _resp = _requests.post(
-            f"{jira_origin}/rest/api/2/version",
-            headers=mutating_headers,
-            json=_create_payload,
-            verify=not insecure,
-        )
-        _resp.raise_for_status()
-    except _requests.HTTPError as e:
-        err_console.print(f"Ошибка при создании релиза в Jira: {e}")
-        if hasattr(e, 'response') and e.response is not None:
-            err_console.print(f"Response: {e.response.text}")
-        raise typer.Exit(code=6)
-    except Exception as e:
-        err_console.print(f"Ошибка при создании релиза в Jira: {e}")
-        raise typer.Exit(code=6)
-
-    print(f"Создан релиз: {version_name}")
-    print(f"  Проект Jira: {jira_project}")
-    print(f"  Дата начала: {start_date}")
-    print(f"  Описание: {description}")
-    print()
-
-    # Привязываем issue к релизу (устанавливаем fixVersions) через прямые REST-вызовы
-    for issue in sorted(root_issues, key=lambda x: x.key):
-        try:
-            jira_issue = jira_client.issue(issue.key, fields="fixVersions")
-            existing = [v.name for v in jira_issue.fields.fixVersions] if jira_issue.fields.fixVersions else []
-            if version_name not in existing:
-                existing.append(version_name)
-                _update_payload = {"fields": {"fixVersions": [{"name": n} for n in existing]}}
-                _resp = _requests.put(
-                    f"{jira_origin}/rest/api/2/issue/{issue.key}",
-                    headers=mutating_headers,
-                    json=_update_payload,
-                    verify=not insecure,
-                )
-                _resp.raise_for_status()
-            print(f"- {issue.key}: fixVersion установлен → {version_name}")
-        except _requests.HTTPError as e:
-            err_console.print(f"Ошибка при обновлении {issue.key}: {e}")
-            if hasattr(e, 'response') and e.response is not None:
-                err_console.print(f"Response: {e.response.text}")
-        except JIRAError as e:
-            err_console.print(f"Ошибка при обновлении {issue.key}: {e}")
-
-    print()
-    print(f"Готово. В релиз {version_name} включено {len(root_issues)} issue.")
+    execute_create_release(
+        gl=gl,
+        project_path=project_path,
+        project_name=project_name,
+        root_issues=root_issues,
+        jira_client=jira_client,
+        jira_base=jira_base,
+        jira_token=jira_token,
+        jira_user=jira_user,
+        jira_project=jira_project,
+        gitlab_tag=gitlab_tag,
+        user_agent=user_agent,
+        insecure=insecure,
+    )
 
 
 @create_app.command("mr")
@@ -863,9 +905,11 @@ def create_mr(
         rich_help_panel="Jira",
     ),
     # Поведение
+    with_release: bool = typer.Option(False, "--with-release", help="Создать релиз в Jira для этого MR"),
+    gitlab_tag: Optional[str] = typer.Option(None, help="Тэг для релиза (если --with-release)"),
     jira_project: Optional[str] = typer.Option(
         default=None,
-        help="Фильтр по проекту Jira (например MMBT).",
+        help="Фильтр по проекту Jira (например MMBT). Обязателен при --with-release.",
         rich_help_panel="Jira",
     ),
     jira_key_re: str = typer.Option(
@@ -987,6 +1031,41 @@ def create_mr(
     )
 
     project_name = project_path.rsplit("/", 1)[-1]
+
+    if with_release:
+        if not jira_project:
+            err_console.print("Ошибка: параметр --jira-project обязателен при использовании --with-release")
+            raise typer.Exit(code=1)
+
+        # Нам нужен jira_client
+        try:
+            jira_client = build_jira_client(
+                jira_base,
+                token=jira_token,
+                user=jira_user,
+                insecure=insecure,
+                user_agent=user_agent,
+            )
+        except Exception as e:
+            err_console.print(f"Не удалось подключиться к Jira: {e}")
+            raise typer.Exit(code=4)
+
+        execute_create_release(
+            gl=gl,
+            project_path=project_path,
+            project_name=project_name,
+            root_issues=root_issues,
+            jira_client=jira_client,
+            jira_base=jira_base,
+            jira_token=jira_token,
+            jira_user=jira_user,
+            jira_project=jira_project,
+            gitlab_tag=gitlab_tag,
+            user_agent=user_agent,
+            insecure=insecure,
+        )
+        print()  # Пустая строка перед списком issue
+
     render_output(root_issues, jira_base=jira_base, fmt=OutputFormat.MD, mr_url=mr.web_url, project_name=project_name)
 
 
