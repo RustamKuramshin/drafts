@@ -1012,7 +1012,7 @@ def create_mr(
             mr = project.mergerequests.create({
                 'source_branch': source_branch,
                 'target_branch': target_branch,
-                'title': f"Draft: Merge {source_branch} into {target_branch}",
+                'title': f"Merge {source_branch} into {target_branch}",
             })
             logging.info("MR создан: %s", mr.web_url)
         except Exception as e:
