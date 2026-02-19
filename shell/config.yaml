@@ -1,0 +1,72 @@
+version: 1
+
+defaults:
+  gitlab:
+    base_url: null
+    token_env: GITLAB_TOKEN
+    insecure: true
+
+  jira:
+    base_url: "https://track.magnit.ru"
+    token_env: JIRA_TOKEN
+    user_env: JIRA_USER
+    key_re: "[A-Z][A-Z0-9]+-[0-9]+"
+    project: "MMBT"
+
+  commit_filter:
+    ignore_patterns:
+      - "^Merge branch"
+      - "^Merge remote-tracking branch"
+      - "^Merge pull request"
+      - "^Merge .* into "
+      - "^Revert "
+      - "^WIP"
+      - "^\\[skip ci\\]"
+      - "^\\[ci skip\\]"
+
+# Единый каталог проектов
+projects:
+  - id: "api-graphql"
+    name: "api-graphql"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql"
+    deploy:
+      order: 20
+
+    # Набор "целей" (какой релиз/окружение делаем) -> пары веток для MR
+    # Ключи target'ов свободные: stage/prod/preprod/qa/hotfix/etc
+    targets:
+      stage:
+        from: "development"
+        to: "stage"
+      prod:
+        from: "stage"
+        to: "master"
+
+  - id: "api-payment-service"
+    name: "api-payment-service"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/api-payment-service"
+    deploy:
+      order: 30
+      depends_on: ["api-graphql"]
+
+    targets:
+      stage:
+        from: "dev"
+        to: "staging"
+      prod:
+        from: "release"
+        to: "master"
+
+  - id: "ke-backend"
+    name: "ke-backend"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend"
+    deploy:
+      order: 10
+
+    targets:
+      stage:
+        from: "develop"
+        to: "stage"
+      prod:
+        from: "stage"
+        to: "main"
