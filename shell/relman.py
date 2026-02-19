@@ -1284,18 +1284,27 @@ def _execute_create_mr(
                 "title": c.get("title", "") or "",
                 "message": c.get("message", "") or "",
             }
-            for c in comparison.get('commits', [])
+            for c in comparison.get("commits", [])
         ]
+        compare_diffs = comparison.get("diffs", []) or []
     except Exception as e:
         err_console.print(f"Ошибка при сравнении веток {target_branch} и {source_branch}: {e}")
         raise typer.Exit(code=3)
+
+    # Важная проверка: бывают случаи, когда коммиты “есть”, но итоговый diff пустой.
+    if not compare_diffs:
+        console.print(
+            f"[yellow]Нет изменений файлов (diff пуст) между '{target_branch}' и '{source_branch}'. "
+            f"MR не будет создан.[/yellow]"
+        )
+        return None
 
     key_rx, ignore_rx = compile_regexps(jira_key_re, ignore_pattern)
     found_keys = extract_jira_keys_from_commits(
         commits=compare_commits,
         key_rx=key_rx,
         ignore_rx=ignore_rx,
-        jira_project=jira_project
+        jira_project=jira_project,
     )
 
     if not found_keys:
@@ -1315,14 +1324,12 @@ def _execute_create_mr(
 
     if is_release:
         logging.info("Обнаружен релизный MR (target_name=%s, target_branch=%s)", target_name, target_branch)
-        # Получаем тэги для вычисления следующей версии
         try:
             tags = get_project_tags(gl, project_path)
         except Exception as e:
             err_console.print(f"Ошибка при получении тэгов GitLab: {e}")
             raise typer.Exit(code=5)
 
-        # Фильтруем только semver-тэги
         semver_tags = [t for t in tags if parse_semver(t) is not None]
 
         if semver_tags:
@@ -1331,16 +1338,14 @@ def _execute_create_mr(
             mr_title = f"Release {next_tag}"
             logging.info("Вычислен следующий тэг: %s, релизная ветка: %s", next_tag, release_branch)
 
-            # Создаём релизную ветку от source_branch
             try:
                 project.branches.create({
-                    'branch': release_branch,
-                    'ref': source_branch,
+                    "branch": release_branch,
+                    "ref": source_branch,
                 })
                 logging.info("Создана релизная ветка: %s от %s", release_branch, source_branch)
                 actual_source_branch = release_branch
             except Exception as e:
-                # Ветка может уже существовать
                 err_msg = str(e)
                 if "already exists" in err_msg or "Branch already exists" in err_msg:
                     logging.info("Релизная ветка %s уже существует, используем её.", release_branch)
@@ -1349,9 +1354,11 @@ def _execute_create_mr(
                     err_console.print(f"Ошибка при создании релизной ветки {release_branch}: {e}")
                     raise typer.Exit(code=7)
         else:
-            logging.info("Semver-тэги не найдены в репозитории, используем ветку %s без создания релизной ветки.", source_branch)
+            logging.info(
+                "Semver-тэги не найдены в репозитории, используем ветку %s без создания релизной ветки.",
+                source_branch,
+            )
             mr_title = "Release"
-            # actual_source_branch остаётся source_branch
 
     # Ищем существующий открытый MR с такими же ветками
     mrs = project.mergerequests.list(
@@ -1364,11 +1371,23 @@ def _execute_create_mr(
 
     if mrs:
         mr = mrs[0]
+
+        # Доп. защита: MR может существовать, но быть “пустым” по фактическим изменениям.
+        try:
+            mr_changes = mr.changes()
+            changes_list = mr_changes.get("changes", []) if isinstance(mr_changes, dict) else []
+            if not changes_list:
+                console.print(
+                    f"[yellow]⚠ MR существует, но diff пуст (нет изменённых файлов):[/yellow] {mr.web_url}"
+                )
+        except Exception as e:
+            logging.debug("Не удалось получить changes для MR %s: %s", getattr(mr, "web_url", "(unknown)"), e)
+
         console.print(f"[green]✔  MR уже существует:[/green] {mr.web_url}")
         return MrResult(
             project_id=project_name,
             mr_url=mr.web_url,
-            title=getattr(mr, 'title', mr_title),
+            title=getattr(mr, "title", mr_title),
             created=False,
         )
 
@@ -1376,9 +1395,9 @@ def _execute_create_mr(
     logging.info("Создаём новый MR: %s -> %s", actual_source_branch, target_branch)
     try:
         mr = project.mergerequests.create({
-            'source_branch': actual_source_branch,
-            'target_branch': target_branch,
-            'title': mr_title,
+            "source_branch": actual_source_branch,
+            "target_branch": target_branch,
+            "title": mr_title,
         })
         logging.info("MR создан: %s", mr.web_url)
     except Exception as e:
