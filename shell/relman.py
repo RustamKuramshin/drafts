@@ -48,7 +48,7 @@ relman.py — CLI-инструмент для управления релиза�
     ./relman.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-payment-service --from "development" --to "stage" --jira-project "MMBT" --with-release
 
 # Batch-обработка создания MR для всех проектов из конфига (использует defaults для параметров):
-    ./relman.py create mr --config ./config.yaml --batch --target "prod"
+    ./relman.py create mr --batch --target "prod"
 """
 
 from __future__ import annotations
@@ -1166,6 +1166,7 @@ def create_mr(
                     insecure=insecure,
                     with_release=with_release,
                     gitlab_tag=gitlab_tag,
+                    target_name=target,
                 )
             except typer.Exit:
                 err_console.print(f"Ошибка при обработке проекта {proj_id}, продолжаем...")
@@ -1199,6 +1200,18 @@ def create_mr(
     )
 
 
+def _is_release_mr(target_name: Optional[str], target_branch: str) -> bool:
+    """Определяет, является ли MR релизным.
+
+    Релизный MR — если --target "prod" или целевая ветка "master"/"main".
+    """
+    if target_name and target_name.lower() == "prod":
+        return True
+    if target_branch.lower() in ("master", "main"):
+        return True
+    return False
+
+
 def _execute_create_mr(
     repo_url: str,
     source_branch: str,
@@ -1215,6 +1228,7 @@ def _execute_create_mr(
     insecure: bool,
     with_release: bool,
     gitlab_tag: Optional[str],
+    target_name: Optional[str] = None,
 ) -> None:
     """Внутренняя логика создания MR (используется как в одиночном, так и в batch-режиме)."""
     host, project_path = parse_repo_url(repo_url)
@@ -1268,10 +1282,56 @@ def _execute_create_mr(
 
     logging.info("Найдено Jira-задач в диффе: %d. Продолжаем работу с MR.", len(found_keys))
 
+    # Определяем, является ли MR релизным
+    is_release = _is_release_mr(target_name, target_branch)
+    actual_source_branch = source_branch
+    mr_title = f"Merge {source_branch} into {target_branch}"
+    next_tag: Optional[str] = None
+
+    if is_release:
+        logging.info("Обнаружен релизный MR (target_name=%s, target_branch=%s)", target_name, target_branch)
+        # Получаем тэги для вычисления следующей версии
+        try:
+            tags = get_project_tags(gl, project_path)
+        except Exception as e:
+            err_console.print(f"Ошибка при получении тэгов GitLab: {e}")
+            raise typer.Exit(code=5)
+
+        # Фильтруем только semver-тэги
+        semver_tags = [t for t in tags if parse_semver(t) is not None]
+
+        if semver_tags:
+            next_tag = compute_next_tag(tags)
+            release_branch = f"release/{next_tag}"
+            mr_title = f"Release {next_tag}"
+            logging.info("Вычислен следующий тэг: %s, релизная ветка: %s", next_tag, release_branch)
+
+            # Создаём релизную ветку от source_branch
+            try:
+                project.branches.create({
+                    'branch': release_branch,
+                    'ref': source_branch,
+                })
+                logging.info("Создана релизная ветка: %s от %s", release_branch, source_branch)
+                actual_source_branch = release_branch
+            except Exception as e:
+                # Ветка может уже существовать
+                err_msg = str(e)
+                if "already exists" in err_msg or "Branch already exists" in err_msg:
+                    logging.info("Релизная ветка %s уже существует, используем её.", release_branch)
+                    actual_source_branch = release_branch
+                else:
+                    err_console.print(f"Ошибка при создании релизной ветки {release_branch}: {e}")
+                    raise typer.Exit(code=7)
+        else:
+            logging.info("Semver-тэги не найдены в репозитории, используем ветку %s без создания релизной ветки.", source_branch)
+            mr_title = "Release"
+            # actual_source_branch остаётся source_branch
+
     # Ищем существующий MR
     mrs = project.mergerequests.list(
         state="opened",
-        source_branch=source_branch,
+        source_branch=actual_source_branch,
         target_branch=target_branch,
     )
 
@@ -1280,12 +1340,12 @@ def _execute_create_mr(
         logging.info("Найден существующий открытый MR: %s", mr.web_url)
     else:
         # Создаем новый MR
-        logging.info("Создаём новый MR: %s -> %s", source_branch, target_branch)
+        logging.info("Создаём новый MR: %s -> %s", actual_source_branch, target_branch)
         try:
             mr = project.mergerequests.create({
-                'source_branch': source_branch,
+                'source_branch': actual_source_branch,
                 'target_branch': target_branch,
-                'title': f"Merge {source_branch} into {target_branch}",
+                'title': mr_title,
             })
             logging.info("MR создан: %s", mr.web_url)
         except Exception as e:
