@@ -13,6 +13,7 @@ defaults:
     key_re: "[A-Z][A-Z0-9]+-[0-9]+"
     project: "MMBT"
     insecure: true
+    user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
 
   commit_filter:
     ignore_patterns:
@@ -25,16 +26,13 @@ defaults:
       - "^\\[skip ci\\]"
       - "^\\[ci skip\\]"
 
-# Единый каталог проектов
 projects:
-  - id: "api-graphql"
-    name: "api-graphql"
-    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql"
+  - id: "mm-core-bff"
+    name: "mm-core-bff"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/mm-core-bff"
     deploy:
       order: 20
 
-    # Набор "целей" (какой релиз/окружение делаем) -> пары веток для MR
-    # Ключи target'ов свободные: stage/prod/preprod/qa/hotfix/etc
     targets:
       stage:
         from: "development"
@@ -43,31 +41,30 @@ projects:
         from: "stage"
         to: "master"
 
-  - id: "api-payment-service"
-    name: "api-payment-service"
-    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/api-payment-service"
+  - id: "hive-graphql-gateway"
+    name: "hive-graphql-gateway"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/hive-graphql-gateway"
     deploy:
       order: 30
-      depends_on: ["api-graphql"]
 
     targets:
       stage:
-        from: "dev"
+        from: "development"
         to: "staging"
       prod:
-        from: "release"
+        from: "staging"
         to: "master"
 
-  - id: "ke-backend"
-    name: "ke-backend"
-    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend"
+  - id: "api-graphql"
+    name: "api-graphql"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql"
     deploy:
-      order: 10
+      order: 40
 
     targets:
       stage:
-        from: "develop"
+        from: "development"
         to: "stage"
       prod:
         from: "stage"
-        to: "main"
+        to: "master"

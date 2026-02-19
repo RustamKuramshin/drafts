@@ -44,8 +44,11 @@ relman.py — CLI-инструмент для управления релиза�
 # Создать MR в GitLab с упоминанием Jira-задач из коммитов:
     ./relman.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql --from "development" --to "stage"
 
-#  (создать MR и Release в Jira!)
+# Создать MR и Release в Jira:
     ./relman.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-payment-service --from "development" --to "stage" --jira-project "MMBT" --with-release
+
+# Batch-обработка создания MR для всех проектов из конфига (использует defaults для параметров):
+    ./relman.py create mr --config ./config.yaml --batch --target "prod"
 """
 
 from __future__ import annotations
@@ -55,12 +58,14 @@ import re
 import sys
 import logging
 import base64
+import pathlib
 import urllib.parse
 from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional, Sequence, Tuple, Dict, Any, Set
 
 import requests as _requests
+import yaml
 
 def _import_or_exit(module: str, pkg_hint: str) -> Any:
     try:
@@ -105,10 +110,93 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+
+# ============================ Конфигурация ======================================
+
+# Глобальное хранилище загруженного конфига
+_loaded_config: Dict[str, Any] = {}
+
+
+def _find_config(explicit_path: Optional[str] = None) -> Optional[pathlib.Path]:
+    """Ищет config.yaml по приоритету: --config > ./config.yaml > ~/.relman/config.yaml."""
+    if explicit_path:
+        p = pathlib.Path(explicit_path).expanduser()
+        if p.is_file():
+            return p
+        return None
+
+    # Рядом с relman.py
+    script_dir = pathlib.Path(__file__).resolve().parent
+    local = script_dir / "config.yaml"
+    if local.is_file():
+        return local
+
+    # Текущий рабочий каталог
+    cwd = pathlib.Path.cwd() / "config.yaml"
+    if cwd.is_file():
+        return cwd
+
+    # ~/.relman/config.yaml
+    home = pathlib.Path.home() / ".relman" / "config.yaml"
+    if home.is_file():
+        return home
+
+    return None
+
+
+def load_config(explicit_path: Optional[str] = None) -> Dict[str, Any]:
+    """Загружает и возвращает конфиг. Кэширует в _loaded_config."""
+    global _loaded_config
+    if _loaded_config:
+        return _loaded_config
+
+    cfg_path = _find_config(explicit_path)
+    if cfg_path is None:
+        err_console.print(
+            "[bold red]Файл config.yaml не найден![/bold red]\n"
+            "Разместите его в одном из мест:\n"
+            "  1) рядом с relman.py\n"
+            "  2) в текущем каталоге\n"
+            "  3) ~/.relman/config.yaml\n"
+            "или укажите путь через --config <path>"
+        )
+        raise typer.Exit(code=1)
+
+    with open(cfg_path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+
+    logging.debug("Конфиг загружен из %s", cfg_path)
+    _loaded_config = data
+    return _loaded_config
+
+
+def cfg_defaults(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Возвращает раздел defaults из конфига."""
+    return cfg.get("defaults", {})
+
+
+def cfg_gitlab(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    return cfg_defaults(cfg).get("gitlab", {})
+
+
+def cfg_jira(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    return cfg_defaults(cfg).get("jira", {})
+
+
+def cfg_commit_filter(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    return cfg_defaults(cfg).get("commit_filter", {})
+
+
+def cfg_projects(cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return cfg.get("projects", [])
+
 @app.callback(invoke_without_command=True)
 def app_callback(
     ctx: typer.Context,
     show_help: bool = typer.Option(False, "--help", "-h", help="Показать справку и выйти."),
+    config: Optional[str] = typer.Option(
+        None, "--config", help="Путь к файлу config.yaml",
+    ),
 ):
     """
     Инструмент позволяет извлекать Jira-задачи из коммитов GitLab MR,
@@ -120,6 +208,10 @@ def app_callback(
     if show_help or ctx.invoked_subcommand is None:
         console.print(ctx.get_help())
         raise typer.Exit()
+
+    # Загружаем конфиг (обязателен для всех команд, кроме help)
+    ctx.ensure_object(dict)
+    ctx.obj["config"] = load_config(config)
 
 
 @app.command("help", hidden=True)
@@ -147,13 +239,14 @@ err_console = Console(stderr=True, style="bold red")
 
 # ============================ Константы и настройки ============================
 
-DEFAULT_JIRA_BASE = os.getenv("JIRA_BASE", "https://track.magnit.ru")
-DEFAULT_JIRA_KEY_RE = os.getenv("JIRA_KEY_RE", r"[A-Z][A-Z0-9]+-[0-9]+")
-DEFAULT_USER_AGENT = os.getenv(
-    "USER_AGENT",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+# Fallback-значения (используются, если в config.yaml что-то не указано)
+_FALLBACK_JIRA_BASE = "https://track.magnit.ru"
+_FALLBACK_JIRA_KEY_RE = r"[A-Z][A-Z0-9]+-[0-9]+"
+_FALLBACK_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
 )
-DEFAULT_IGNORE_PATTERNS: Sequence[str] = (
+_FALLBACK_IGNORE_PATTERNS: Sequence[str] = (
     r"^Merge branch",
     r"^Merge remote-tracking branch",
     r"^Merge pull request",
@@ -162,6 +255,31 @@ DEFAULT_IGNORE_PATTERNS: Sequence[str] = (
     r"^WIP",
     r"^\[skip ci\]",
 )
+
+
+def _resolve_defaults(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Возвращает разрешённые значения по умолчанию из конфига + env + fallback."""
+    gl = cfg_gitlab(cfg)
+    ji = cfg_jira(cfg)
+    cf = cfg_commit_filter(cfg)
+
+    gitlab_token_env = gl.get("token_env", "GITLAB_TOKEN")
+    jira_token_env = ji.get("token_env", "JIRA_TOKEN")
+    jira_user_env = ji.get("user_env", "JIRA_USER")
+
+    return {
+        "gitlab_base_url": gl.get("base_url", ""),
+        "gitlab_token": os.getenv(gitlab_token_env, ""),
+        "gitlab_insecure": gl.get("insecure", True),
+        "jira_base": ji.get("base_url") or os.getenv("JIRA_BASE", _FALLBACK_JIRA_BASE),
+        "jira_token": os.getenv(jira_token_env, ""),
+        "jira_user": os.getenv(jira_user_env, ""),
+        "jira_project": ji.get("project", ""),
+        "jira_key_re": ji.get("key_re") or os.getenv("JIRA_KEY_RE", _FALLBACK_JIRA_KEY_RE),
+        "jira_insecure": ji.get("insecure", True),
+        "user_agent": ji.get("user_agent") or os.getenv("USER_AGENT", _FALLBACK_USER_AGENT),
+        "ignore_patterns": cf.get("ignore_patterns", list(_FALLBACK_IGNORE_PATTERNS)),
+    }
 
 
 # ============================ Вспомогательные структуры =========================
@@ -691,10 +809,11 @@ def execute_create_release(
 
 @get_app.command("issues")
 def get_issues(
+    ctx: typer.Context,
     mr_url: str = typer.Argument(..., help="Ссылка на MR в GitLab (https://host/group/proj/-/merge_requests/<iid>)"),
     # GitLab auth
     gitlab_token: Optional[str] = typer.Option(
-        default=os.getenv("GITLAB_TOKEN"),
+        default=None,
         help="Токен GitLab (env: GITLAB_TOKEN)",
         rich_help_panel="GitLab",
     ),
@@ -704,29 +823,29 @@ def get_issues(
         rich_help_panel="GitLab",
     ),
     # Jira auth
-    jira_base: str = typer.Option(
-        default=DEFAULT_JIRA_BASE,
-        help=f"База Jira (env: JIRA_BASE) [по умолчанию: {DEFAULT_JIRA_BASE}]",
+    jira_base: Optional[str] = typer.Option(
+        default=None,
+        help="База Jira (из config.yaml или env JIRA_BASE)",
         rich_help_panel="Jira",
     ),
     jira_user: Optional[str] = typer.Option(
-        default=os.getenv("JIRA_USER"), help="Пользователь Jira (если используется basic_auth)", rich_help_panel="Jira"
+        default=None, help="Пользователь Jira (если используется basic_auth)", rich_help_panel="Jira"
     ),
     jira_token: Optional[str] = typer.Option(
-        default=os.getenv("JIRA_TOKEN"), help="API-токен Jira (env: JIRA_TOKEN)", rich_help_panel="Jira"
+        default=None, help="API-токен Jira (env: JIRA_TOKEN)", rich_help_panel="Jira"
     ),
-    user_agent: str = typer.Option(
-        default=DEFAULT_USER_AGENT,
-        help=f"User-Agent для запросов к Jira (env: USER_AGENT). По умолчанию браузерный UA.",
+    user_agent: Optional[str] = typer.Option(
+        default=None,
+        help="User-Agent для запросов к Jira.",
         rich_help_panel="Jira",
     ),
     # Поведение
-    jira_key_re: str = typer.Option(
-        default=DEFAULT_JIRA_KEY_RE,
-        help=f"Regexp для Jira-ключей (env: JIRA_KEY_RE) [по умолчанию: {DEFAULT_JIRA_KEY_RE}]",
+    jira_key_re: Optional[str] = typer.Option(
+        default=None,
+        help="Regexp для Jira-ключей",
     ),
-    ignore_pattern: List[str] = typer.Option(
-        default=list(DEFAULT_IGNORE_PATTERNS),
+    ignore_pattern: Optional[List[str]] = typer.Option(
+        default=None,
         help="Regexp-паттерны для игнорирования коммитов по первой строке (можно указывать несколько)",
     ),
     jira_project: Optional[str] = typer.Option(
@@ -739,15 +858,28 @@ def get_issues(
         case_sensitive=False,
         help="Формат вывода: md|text|urls|json",
     ),
-    insecure: bool = typer.Option(
-        default=True,
-        help="Игнорировать проверку SSL-сертификатов (как curl -k). По умолчанию включено; используйте --no-insecure для строгой проверки.",
+    insecure: Optional[bool] = typer.Option(
+        default=None,
+        help="Игнорировать проверку SSL-сертификатов (как curl -k).",
     ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Подробный вывод"),
 ) -> None:
     """Извлечь корневые Jira-задачи из коммитов Merge Request и вывести список задач.
     """
     setup_logging(verbose)
+
+    cfg = ctx.obj["config"]
+    d = _resolve_defaults(cfg)
+
+    gitlab_token = gitlab_token or d["gitlab_token"]
+    jira_base = jira_base or d["jira_base"]
+    jira_user = jira_user or d["jira_user"] or None
+    jira_token = jira_token or d["jira_token"] or None
+    user_agent = user_agent or d["user_agent"]
+    jira_key_re = jira_key_re or d["jira_key_re"]
+    ignore_pattern = ignore_pattern if ignore_pattern is not None else d["ignore_patterns"]
+    jira_project = jira_project or d["jira_project"] or None
+    insecure = insecure if insecure is not None else d["gitlab_insecure"]
 
     if insecure:
         try:
@@ -777,10 +909,11 @@ def get_issues(
 
 @create_app.command("release")
 def create_release(
+    ctx: typer.Context,
     mr_url: str = typer.Argument(..., help="Ссылка на MR в GitLab (https://host/group/proj/-/merge_requests/<iid>)"),
     # GitLab auth
     gitlab_token: Optional[str] = typer.Option(
-        default=os.getenv("GITLAB_TOKEN"),
+        default=None,
         help="Токен GitLab (env: GITLAB_TOKEN)",
         rich_help_panel="GitLab",
     ),
@@ -795,39 +928,39 @@ def create_release(
         rich_help_panel="GitLab",
     ),
     # Jira auth
-    jira_base: str = typer.Option(
-        default=DEFAULT_JIRA_BASE,
-        help=f"База Jira (env: JIRA_BASE) [по умолчанию: {DEFAULT_JIRA_BASE}]",
+    jira_base: Optional[str] = typer.Option(
+        default=None,
+        help="База Jira (из config.yaml или env JIRA_BASE)",
         rich_help_panel="Jira",
     ),
     jira_user: Optional[str] = typer.Option(
-        default=os.getenv("JIRA_USER"), help="Пользователь Jira (если используется basic_auth)", rich_help_panel="Jira"
+        default=None, help="Пользователь Jira (если используется basic_auth)", rich_help_panel="Jira"
     ),
     jira_token: Optional[str] = typer.Option(
-        default=os.getenv("JIRA_TOKEN"), help="API-токен Jira (env: JIRA_TOKEN)", rich_help_panel="Jira"
+        default=None, help="API-токен Jira (env: JIRA_TOKEN)", rich_help_panel="Jira"
     ),
-    user_agent: str = typer.Option(
-        default=DEFAULT_USER_AGENT,
+    user_agent: Optional[str] = typer.Option(
+        default=None,
         help="User-Agent для запросов к Jira.",
         rich_help_panel="Jira",
     ),
-    # Jira project — обязательный для create release
-    jira_project: str = typer.Option(
-        ...,
+    # Jira project — обязательный для create release (берётся из конфига, если не указан)
+    jira_project: Optional[str] = typer.Option(
+        default=None,
         help="Проект Jira (например MMBT). Обязателен для создания релиза.",
         rich_help_panel="Jira",
     ),
     # Поведение
-    jira_key_re: str = typer.Option(
-        default=DEFAULT_JIRA_KEY_RE,
-        help=f"Regexp для Jira-ключей [по умолчанию: {DEFAULT_JIRA_KEY_RE}]",
+    jira_key_re: Optional[str] = typer.Option(
+        default=None,
+        help="Regexp для Jira-ключей",
     ),
-    ignore_pattern: List[str] = typer.Option(
-        default=list(DEFAULT_IGNORE_PATTERNS),
+    ignore_pattern: Optional[List[str]] = typer.Option(
+        default=None,
         help="Regexp-паттерны для игнорирования коммитов по первой строке",
     ),
-    insecure: bool = typer.Option(
-        default=True,
+    insecure: Optional[bool] = typer.Option(
+        default=None,
         help="Игнорировать проверку SSL-сертификатов (как curl -k).",
     ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Подробный вывод"),
@@ -838,6 +971,22 @@ def create_release(
     Если --gitlab-tag не указан, следующий тэг вычисляется автоматически из тэгов проекта.
     """
     setup_logging(verbose)
+
+    cfg = ctx.obj["config"]
+    d = _resolve_defaults(cfg)
+
+    gitlab_token = gitlab_token or d["gitlab_token"]
+    jira_base = jira_base or d["jira_base"]
+    jira_user = jira_user or d["jira_user"] or None
+    jira_token = jira_token or d["jira_token"] or None
+    user_agent = user_agent or d["user_agent"]
+    jira_key_re = jira_key_re or d["jira_key_re"]
+    ignore_pattern = ignore_pattern if ignore_pattern is not None else d["ignore_patterns"]
+    jira_project = jira_project or d["jira_project"] or None
+    insecure = insecure if insecure is not None else d["gitlab_insecure"]
+
+    if not jira_project:
+        raise typer.BadParameter("Не задан проект Jira. Укажите --jira-project или задайте в config.yaml (defaults.jira.project)")
 
     if insecure:
         try:
@@ -878,12 +1027,16 @@ def create_release(
 
 @create_app.command("mr")
 def create_mr(
-    repo_url: str = typer.Argument(..., help="Ссылка на репозиторий в GitLab (https://host/group/proj)"),
-    source_branch: str = typer.Option(..., "--from", help="Исходная ветка (source branch)"),
-    target_branch: str = typer.Option(..., "--to", help="Целевая ветка (target branch)"),
+    ctx: typer.Context,
+    repo_url: Optional[str] = typer.Argument(None, help="Ссылка на репозиторий в GitLab (https://host/group/proj). Не требуется в batch-режиме."),
+    source_branch: Optional[str] = typer.Option(None, "--from", help="Исходная ветка (source branch). В batch-режиме берётся из targets."),
+    target_branch: Optional[str] = typer.Option(None, "--to", help="Целевая ветка (target branch). В batch-режиме берётся из targets."),
+    # Batch-режим
+    batch: bool = typer.Option(False, "--batch", help="Batch-режим: перебрать все проекты из config.yaml"),
+    target: Optional[str] = typer.Option(None, "--target", help="Имя target из config.yaml (например stage, prod). Используется в batch-режиме для выбора пар веток."),
     # GitLab auth
     gitlab_token: Optional[str] = typer.Option(
-        default=os.getenv("GITLAB_TOKEN"),
+        default=None,
         help="Токен GitLab (env: GITLAB_TOKEN)",
         rich_help_panel="GitLab",
     ),
@@ -893,19 +1046,19 @@ def create_mr(
         rich_help_panel="GitLab",
     ),
     # Jira auth
-    jira_base: str = typer.Option(
-        default=DEFAULT_JIRA_BASE,
-        help=f"База Jira (env: JIRA_BASE) [по умолчанию: {DEFAULT_JIRA_BASE}]",
+    jira_base: Optional[str] = typer.Option(
+        default=None,
+        help="База Jira (из config.yaml или env JIRA_BASE)",
         rich_help_panel="Jira",
     ),
     jira_user: Optional[str] = typer.Option(
-        default=os.getenv("JIRA_USER"), help="Пользователь Jira (если используется basic_auth)", rich_help_panel="Jira"
+        default=None, help="Пользователь Jira (если используется basic_auth)", rich_help_panel="Jira"
     ),
     jira_token: Optional[str] = typer.Option(
-        default=os.getenv("JIRA_TOKEN"), help="API-токен Jira (env: JIRA_TOKEN)", rich_help_panel="Jira"
+        default=None, help="API-токен Jira (env: JIRA_TOKEN)", rich_help_panel="Jira"
     ),
-    user_agent: str = typer.Option(
-        default=DEFAULT_USER_AGENT,
+    user_agent: Optional[str] = typer.Option(
+        default=None,
         help="User-Agent для запросов к Jira.",
         rich_help_panel="Jira",
     ),
@@ -917,16 +1070,16 @@ def create_mr(
         help="Фильтр по проекту Jira (например MMBT). Обязателен при --with-release.",
         rich_help_panel="Jira",
     ),
-    jira_key_re: str = typer.Option(
-        default=DEFAULT_JIRA_KEY_RE,
-        help=f"Regexp для Jira-ключей [по умолчанию: {DEFAULT_JIRA_KEY_RE}]",
+    jira_key_re: Optional[str] = typer.Option(
+        default=None,
+        help="Regexp для Jira-ключей",
     ),
-    ignore_pattern: List[str] = typer.Option(
-        default=list(DEFAULT_IGNORE_PATTERNS),
+    ignore_pattern: Optional[List[str]] = typer.Option(
+        default=None,
         help="Regexp-паттерны для игнорирования коммитов по первой строке",
     ),
-    insecure: bool = typer.Option(
-        default=True,
+    insecure: Optional[bool] = typer.Option(
+        default=None,
         help="Игнорировать проверку SSL-сертификатов.",
     ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Подробный вывод"),
@@ -934,8 +1087,24 @@ def create_mr(
     """Создать Merge Request в GitLab (если он ещё не существует) и вывести список Jira-issue.
 
     Если открытый MR между ветками уже существует, используется он.
+
+    [bold]Batch-режим[/bold]: с флагом --batch перебираются все проекты из config.yaml.
+    Используйте --target для выбора пар веток (например --target stage).
     """
     setup_logging(verbose)
+
+    cfg = ctx.obj["config"]
+    d = _resolve_defaults(cfg)
+
+    gitlab_token = gitlab_token or d["gitlab_token"]
+    jira_base = jira_base or d["jira_base"]
+    jira_user = jira_user or d["jira_user"] or None
+    jira_token = jira_token or d["jira_token"] or None
+    user_agent = user_agent or d["user_agent"]
+    jira_key_re = jira_key_re or d["jira_key_re"]
+    ignore_pattern = ignore_pattern if ignore_pattern is not None else d["ignore_patterns"]
+    jira_project = jira_project or d["jira_project"] or None
+    insecure = insecure if insecure is not None else d["gitlab_insecure"]
 
     if insecure:
         try:
@@ -944,6 +1113,110 @@ def create_mr(
         except Exception:
             pass
 
+    if batch:
+        # Batch-режим: перебираем проекты из config.yaml
+        if not target:
+            raise typer.BadParameter("В batch-режиме необходимо указать --target (например --target stage)")
+
+        projects = cfg_projects(cfg)
+        if not projects:
+            err_console.print("В config.yaml не определены проекты (projects).")
+            raise typer.Exit(code=1)
+
+        # Сортируем по deploy.order (если указан)
+        projects_sorted = sorted(projects, key=lambda p: p.get("deploy", {}).get("order", 999))
+
+        for proj in projects_sorted:
+            proj_id = proj.get("id", proj.get("name", "unknown"))
+            targets = proj.get("targets", {})
+            if target not in targets:
+                console.print(f"[dim]⏭  {proj_id}: target '{target}' не определён, пропускаем.[/dim]")
+                continue
+
+            proj_repo_url = proj.get("repo_url", "")
+            if not proj_repo_url:
+                err_console.print(f"Проект {proj_id}: не указан repo_url, пропускаем.")
+                continue
+
+            t = targets[target]
+            proj_from = t.get("from", "")
+            proj_to = t.get("to", "")
+            if not proj_from or not proj_to:
+                err_console.print(f"Проект {proj_id}: target '{target}' не содержит from/to, пропускаем.")
+                continue
+
+            console.print(f"\n[bold]{'=' * 60}[/bold]")
+            console.print(f"[bold]📦 Проект: {proj_id}[/bold]  ({proj_from} → {proj_to})")
+            console.print(f"[bold]{'=' * 60}[/bold]")
+
+            try:
+                _execute_create_mr(
+                    repo_url=proj_repo_url,
+                    source_branch=proj_from,
+                    target_branch=proj_to,
+                    gitlab_token=gitlab_token,
+                    gitlab_url_override=gitlab_url_override,
+                    jira_base=jira_base,
+                    jira_user=jira_user,
+                    jira_token=jira_token,
+                    user_agent=user_agent,
+                    jira_key_re=jira_key_re,
+                    ignore_pattern=ignore_pattern,
+                    jira_project=jira_project,
+                    insecure=insecure,
+                    with_release=with_release,
+                    gitlab_tag=gitlab_tag,
+                )
+            except typer.Exit:
+                err_console.print(f"Ошибка при обработке проекта {proj_id}, продолжаем...")
+                continue
+
+        console.print(f"\n[bold green]Batch-режим завершён. Обработано проектов: {len(projects_sorted)}[/bold green]")
+        return
+
+    # Одиночный режим — repo_url обязателен
+    if not repo_url:
+        raise typer.BadParameter("Укажите ссылку на репозиторий (repo_url) или используйте --batch режим.")
+    if not source_branch or not target_branch:
+        raise typer.BadParameter("Укажите --from и --to ветки или используйте --batch --target режим.")
+
+    _execute_create_mr(
+        repo_url=repo_url,
+        source_branch=source_branch,
+        target_branch=target_branch,
+        gitlab_token=gitlab_token,
+        gitlab_url_override=gitlab_url_override,
+        jira_base=jira_base,
+        jira_user=jira_user,
+        jira_token=jira_token,
+        user_agent=user_agent,
+        jira_key_re=jira_key_re,
+        ignore_pattern=ignore_pattern,
+        jira_project=jira_project,
+        insecure=insecure,
+        with_release=with_release,
+        gitlab_tag=gitlab_tag,
+    )
+
+
+def _execute_create_mr(
+    repo_url: str,
+    source_branch: str,
+    target_branch: str,
+    gitlab_token: str,
+    gitlab_url_override: Optional[str],
+    jira_base: str,
+    jira_user: Optional[str],
+    jira_token: Optional[str],
+    user_agent: str,
+    jira_key_re: str,
+    ignore_pattern: List[str],
+    jira_project: Optional[str],
+    insecure: bool,
+    with_release: bool,
+    gitlab_tag: Optional[str],
+) -> None:
+    """Внутренняя логика создания MR (используется как в одиночном, так и в batch-режиме)."""
     host, project_path = parse_repo_url(repo_url)
     if not gitlab_token:
         raise typer.BadParameter("Не задан токен GitLab. Укажите --gitlab-token или env GITLAB_TOKEN")
