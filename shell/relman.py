@@ -1126,6 +1126,8 @@ def create_mr(
         # Сортируем по deploy.order (если указан)
         projects_sorted = sorted(projects, key=lambda p: p.get("deploy", {}).get("order", 999))
 
+        mr_results: List[MrResult] = []
+
         for proj in projects_sorted:
             proj_id = proj.get("id", proj.get("name", "unknown"))
             targets = proj.get("targets", {})
@@ -1150,7 +1152,7 @@ def create_mr(
             console.print(f"[bold]{'=' * 60}[/bold]")
 
             try:
-                _execute_create_mr(
+                result = _execute_create_mr(
                     repo_url=proj_repo_url,
                     source_branch=proj_from,
                     target_branch=proj_to,
@@ -1168,11 +1170,25 @@ def create_mr(
                     gitlab_tag=gitlab_tag,
                     target_name=target,
                 )
+                if result:
+                    mr_results.append(result)
             except typer.Exit:
                 err_console.print(f"Ошибка при обработке проекта {proj_id}, продолжаем...")
                 continue
 
-        console.print(f"\n[bold green]Batch-режим завершён. Обработано проектов: {len(projects_sorted)}[/bold green]")
+        # Сводка по всем MR
+        console.print(f"\n[bold]{'=' * 60}[/bold]")
+        console.print(f"[bold green]Batch-режим завершён. Обработано проектов: {len(projects_sorted)}[/bold green]")
+
+        if mr_results:
+            console.print(f"\n[bold]Сводка MR ({len(mr_results)}):[/bold]")
+            for r in mr_results:
+                status = "✔ существующий" if not r.created else "✚ создан"
+                console.print(f"  {status} | {r.project_id}: {r.title}")
+                console.print(f"           {r.mr_url}")
+        else:
+            console.print("[yellow]MR не были созданы или найдены.[/yellow]")
+
         return
 
     # Одиночный режим — repo_url обязателен
@@ -1212,6 +1228,15 @@ def _is_release_mr(target_name: Optional[str], target_branch: str) -> bool:
     return False
 
 
+@dataclass
+class MrResult:
+    """Результат обработки одного проекта в create mr."""
+    project_id: str
+    mr_url: str
+    title: str
+    created: bool  # True — создан новый, False — найден существующий
+
+
 def _execute_create_mr(
     repo_url: str,
     source_branch: str,
@@ -1229,7 +1254,7 @@ def _execute_create_mr(
     with_release: bool,
     gitlab_tag: Optional[str],
     target_name: Optional[str] = None,
-) -> None:
+) -> Optional[MrResult]:
     """Внутренняя логика создания MR (используется как в одиночном, так и в batch-режиме)."""
     host, project_path = parse_repo_url(repo_url)
     if not gitlab_token:
@@ -1278,7 +1303,7 @@ def _execute_create_mr(
         if jira_project:
             msg += f" for project '{jira_project}'"
         console.print(f"[yellow]{msg}. MR не будет создан.[/yellow]")
-        return
+        return None
 
     logging.info("Найдено Jira-задач в диффе: %d. Продолжаем работу с MR.", len(found_keys))
 
@@ -1328,29 +1353,37 @@ def _execute_create_mr(
             mr_title = "Release"
             # actual_source_branch остаётся source_branch
 
-    # Ищем существующий MR
+    # Ищем существующий открытый MR с такими же ветками
     mrs = project.mergerequests.list(
         state="opened",
         source_branch=actual_source_branch,
         target_branch=target_branch,
     )
 
+    project_name = project_path.rsplit("/", 1)[-1]
+
     if mrs:
         mr = mrs[0]
-        logging.info("Найден существующий открытый MR: %s", mr.web_url)
-    else:
-        # Создаем новый MR
-        logging.info("Создаём новый MR: %s -> %s", actual_source_branch, target_branch)
-        try:
-            mr = project.mergerequests.create({
-                'source_branch': actual_source_branch,
-                'target_branch': target_branch,
-                'title': mr_title,
-            })
-            logging.info("MR создан: %s", mr.web_url)
-        except Exception as e:
-            err_console.print(f"Ошибка при создании MR: {e}")
-            raise typer.Exit(code=7)
+        console.print(f"[green]✔  MR уже существует:[/green] {mr.web_url}")
+        return MrResult(
+            project_id=project_name,
+            mr_url=mr.web_url,
+            title=getattr(mr, 'title', mr_title),
+            created=False,
+        )
+
+    # Создаём новый MR
+    logging.info("Создаём новый MR: %s -> %s", actual_source_branch, target_branch)
+    try:
+        mr = project.mergerequests.create({
+            'source_branch': actual_source_branch,
+            'target_branch': target_branch,
+            'title': mr_title,
+        })
+        logging.info("MR создан: %s", mr.web_url)
+    except Exception as e:
+        err_console.print(f"Ошибка при создании MR: {e}")
+        raise typer.Exit(code=7)
 
     # Теперь извлекаем issues
     root_issues = extract_issues_from_mr_id(
@@ -1367,8 +1400,6 @@ def _execute_create_mr(
         insecure=insecure,
         mr_url_for_log=mr.web_url,
     )
-
-    project_name = project_path.rsplit("/", 1)[-1]
 
     if with_release:
         if not jira_project:
@@ -1405,6 +1436,13 @@ def _execute_create_mr(
         print()  # Пустая строка перед списком issue
 
     render_output(root_issues, jira_base=jira_base, fmt=OutputFormat.MD, mr_url=mr.web_url, project_name=project_name)
+
+    return MrResult(
+        project_id=project_name,
+        mr_url=mr.web_url,
+        title=mr_title,
+        created=True,
+    )
 
 
 # ============================ Точка входа =======================================
