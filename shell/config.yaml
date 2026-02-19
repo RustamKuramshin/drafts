@@ -31,7 +31,7 @@ projects:
     name: "mm-core-bff"
     repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/mm-core-bff"
     deploy:
-      order: 20
+      order: 10
 
     targets:
       stage:
@@ -45,7 +45,7 @@ projects:
     name: "hive-graphql-gateway"
     repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/hive-graphql-gateway"
     deploy:
-      order: 30
+      order: 20
 
     targets:
       stage:
@@ -59,6 +59,20 @@ projects:
     name: "api-graphql"
     repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql"
     deploy:
+      order: 30
+
+    targets:
+      stage:
+        from: "development"
+        to: "stage"
+      prod:
+        from: "stage"
+        to: "master"
+
+  - id: "api-payment-service"
+    name: "api-payment-service"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/api-payment-service"
+    deploy:
       order: 40
 
     targets:
@@ -68,3 +82,123 @@ projects:
       prod:
         from: "stage"
         to: "master"
+
+  - id: "mm-geo-service"
+    name: "mm-geo-service"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/mm-geo-service"
+    deploy:
+      order: 50
+
+    targets:
+      stage:
+        from: "development"
+        to: "stage"
+      prod:
+        from: "stage"
+        to: "master"
+
+  - id: "api-cart-service"
+    name: "api-cart-service"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/api-cart-service"
+    deploy:
+      order: 60
+
+    targets:
+      stage:
+        from: "development"
+        to: "stage"
+      prod:
+        from: "stage"
+        to: "master"
+
+  - id: "api-cart-composer"
+    name: "api-cart-composer"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/api-cart-composer"
+    deploy:
+      order: 70
+
+    targets:
+      stage:
+        from: "development"
+        to: "stage"
+      prod:
+        from: "stage"
+        to: "master"
+
+  - id: "ke-notification-service"
+    name: "ke-notification-service"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/ke-notification-service"
+    deploy:
+      order: 80
+
+    targets:
+      stage:
+        from: "development"
+        to: "stage"
+      prod:
+        from: "stage"
+        to: "master"
+
+  - id: "notifications-proxy-service"
+    name: "notifications-proxy-service"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/notifications-proxy-service"
+    deploy:
+      order: 90
+
+    targets:
+      stage:
+        from: "development"
+        to: "stage"
+      prod:
+        from: "stage"
+        to: "master"
+
+  - id: "api-finance-service"
+    name: "api-finance-service"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/api-finance-service"
+    deploy:
+      order: 100
+
+    targets:
+      stage:
+        from: "development"
+        to: "stage"
+      prod:
+        from: "stage"
+        to: "master"
+
+  - id: "popup-service"
+    name: "popup-service"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/popup-service"
+    deploy:
+      order: 110
+
+    targets:
+      stage:
+        from: "development"
+        to: "stage"
+      prod:
+        from: "stage"
+        to: "master"
+
+  - id: "analytics-events-feeder"
+    name: "analytics-events-feeder"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/analytics-events-feeder"
+    deploy:
+      order: 120
+
+    targets:
+      prod:
+        from: "development"
+        to: "master"
+
+  - id: "analytic-back-events-holder"
+    name: "analytic-back-events-holder"
+    repo_url: "https://gitlab.platform.corp/magnitonline/mm/backend/analytic-back-events-holder"
+    deploy:
+      order: 130
+
+    targets:
+      prod:
+        from: "development"
+        to: "main"
