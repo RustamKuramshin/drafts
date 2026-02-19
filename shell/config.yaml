@@ -2,7 +2,7 @@ version: 1
 
 defaults:
   gitlab:
-    base_url: null
+    base_url: "https://gitlab.platform.corp"
     token_env: GITLAB_TOKEN
     insecure: true
 
@@ -12,6 +12,7 @@ defaults:
     user_env: JIRA_USER
     key_re: "[A-Z][A-Z0-9]+-[0-9]+"
     project: "MMBT"
+    insecure: true
 
   commit_filter:
     ignore_patterns:
