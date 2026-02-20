@@ -50,6 +50,10 @@ relman.py — CLI-инструмент для управления релиза�
 
 # Batch-обработка создания MR для всех проектов из конфига (использует defaults для параметров):
     ./relman.py create mr --batch --target "prod"
+
+# Batch-обработка получения списка открытых MR для окружения:
+    ./relman.py get mrs --batch --target "prod"
+    ./relman.py get mrs --batch --target "stage"
 """
 
 from __future__ import annotations
@@ -698,6 +702,148 @@ def extract_issues_from_mr(
     return project_path, project_name, root_issues, jira_client, gl
 
 
+# ============================ Команда: get mrs (batch) =========================
+
+
+@dataclass(frozen=True)
+class OpenMr:
+    project_id: str
+    project_path: str
+    iid: int
+    title: str
+    web_url: str
+    source_branch: str
+    target_branch: str
+
+
+def _mr_matches_env(
+    *,
+    source_branch: str,
+    target_branch: str,
+    env_from: str,
+    env_to: str,
+    is_release_env: bool,
+) -> bool:
+    if target_branch != env_to:
+        return False
+    if not is_release_env:
+        return source_branch == env_from
+    # Для релизного окружения (обычно prod): допускаем release/* ветки,
+    # а также классическую пару from->to из конфига.
+    return source_branch == env_from or source_branch.startswith("release/")
+
+
+def _resolve_root_issue_cached(
+    jira_client: JIRA,
+    key: str,
+    cache: Dict[str, JiraRootIssue],
+) -> JiraRootIssue:
+    cached = cache.get(key)
+    if cached:
+        return cached
+    root = resolve_root_issue(jira_client, key)
+    cache[key] = root
+    cache[root.key] = root
+    return root
+
+
+def extract_root_issues_from_commits_cached(
+    *,
+    commits: List[Dict[str, str]],
+    key_rx: re.Pattern[str],
+    ignore_rx: List[re.Pattern[str]],
+    jira_client: JIRA,
+    jira_project: Optional[str],
+    cache: Dict[str, JiraRootIssue],
+) -> List[JiraRootIssue]:
+    found_keys = extract_jira_keys_from_commits(
+        commits=commits,
+        key_rx=key_rx,
+        ignore_rx=ignore_rx,
+        jira_project=jira_project,
+    )
+    if not found_keys:
+        return []
+
+    root_map: Dict[str, JiraRootIssue] = {}
+    for key in sorted(found_keys):
+        root = _resolve_root_issue_cached(jira_client, key, cache)
+        root_map[root.key] = root
+
+    return list(root_map.values())
+
+
+def _list_open_mrs_for_env(
+    *,
+    project: Any,
+    project_id: str,
+    project_path: str,
+    env_from: str,
+    env_to: str,
+    target_name: Optional[str],
+) -> List[OpenMr]:
+    is_release_env = _is_release_mr(target_name, env_to)
+
+    try:
+        if is_release_env:
+            # Нельзя запросить "source_branch startswith release/" через API,
+            # поэтому берём все открытые MR в целевую ветку и фильтруем локально.
+            candidates = project.mergerequests.list(state="opened", target_branch=env_to, all=True)
+        else:
+            candidates = project.mergerequests.list(
+                state="opened",
+                source_branch=env_from,
+                target_branch=env_to,
+                all=True,
+            )
+    except Exception as e:
+        err_console.print(f"Ошибка при получении списка MR для {project_id}: {e}")
+        return []
+
+    result: List[OpenMr] = []
+    for mr in candidates:
+        iid = int(getattr(mr, "iid", 0) or 0)
+        if not iid:
+            continue
+
+        source_branch = getattr(mr, "source_branch", "") or ""
+        target_branch = getattr(mr, "target_branch", "") or ""
+
+        # Иногда list() возвращает урезанный объект без веток — добираем.
+        if not source_branch or not target_branch:
+            try:
+                mr_full = project.mergerequests.get(iid)
+                source_branch = getattr(mr_full, "source_branch", "") or source_branch
+                target_branch = getattr(mr_full, "target_branch", "") or target_branch
+                mr = mr_full
+            except Exception:
+                pass
+
+        if not _mr_matches_env(
+            source_branch=source_branch,
+            target_branch=target_branch,
+            env_from=env_from,
+            env_to=env_to,
+            is_release_env=is_release_env,
+        ):
+            continue
+
+        result.append(
+            OpenMr(
+                project_id=project_id,
+                project_path=project_path,
+                iid=iid,
+                title=getattr(mr, "title", "") or "",
+                web_url=getattr(mr, "web_url", "") or "",
+                source_branch=source_branch,
+                target_branch=target_branch,
+            )
+        )
+
+    result.sort(key=lambda x: x.iid)
+    return result
+
+
 # ============================ Логика создания релиза ============================
 
 
@@ -911,6 +1057,237 @@ def get_issues(
         insecure=insecure,
     )
     render_output(root_issues, jira_base=jira_base, fmt=fmt.lower(), mr_url=mr_url, project_name=project_name)
+
+
+@get_app.command("mrs")
+def get_mrs(
+    ctx: typer.Context,
+    # Batch-режим
+    batch: bool = typer.Option(False, "--batch", help="Batch-режим: перебрать все проекты из config.yaml"),
+    target: Optional[str] = typer.Option(None, "--target", help="Имя target из config.yaml (например stage, prod)."),
+    # GitLab auth
+    gitlab_token: Optional[str] = typer.Option(
+        default=None,
+        help="Токен GitLab (env: GITLAB_TOKEN)",
+        rich_help_panel="GitLab",
+    ),
+    gitlab_url_override: Optional[str] = typer.Option(
+        default=None,
+        help="База GitLab API/Host (по умолчанию берётся из repo_url).",
+        rich_help_panel="GitLab",
+    ),
+    # Jira auth
+    jira_base: Optional[str] = typer.Option(
+        default=None,
+        help="База Jira (из config.yaml или env JIRA_BASE)",
+        rich_help_panel="Jira",
+    ),
+    jira_user: Optional[str] = typer.Option(
+        default=None, help="Пользователь Jira (если используется basic_auth)", rich_help_panel="Jira"
+    ),
+    jira_token: Optional[str] = typer.Option(
+        default=None, help="API-токен Jira (env: JIRA_TOKEN)", rich_help_panel="Jira"
+    ),
+    user_agent: Optional[str] = typer.Option(
+        default=None,
+        help="User-Agent для запросов к Jira.",
+        rich_help_panel="Jira",
+    ),
+    # Поведение
+    jira_project: Optional[str] = typer.Option(
+        default=None,
+        help="Фильтр по проекту Jira (например MMBT). Если указан, в вывод попадут только issue этого проекта.",
+        rich_help_panel="Jira",
+    ),
+    jira_key_re: Optional[str] = typer.Option(
+        default=None,
+        help="Regexp для Jira-ключей",
+    ),
+    ignore_pattern: Optional[List[str]] = typer.Option(
+        default=None,
+        help="Regexp-паттерны для игнорирования коммитов по первой строке",
+    ),
+    fmt: str = typer.Option(
+        default=OutputFormat.MD,
+        case_sensitive=False,
+        help="Формат вывода: md|text|urls|json",
+    ),
+    insecure: Optional[bool] = typer.Option(
+        default=None,
+        help="Игнорировать проверку SSL-сертификатов (как curl -k).",
+    ),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Подробный вывод"),
+) -> None:
+    """Получить список открытых (не смерженных) MR для конкретного окружения в batch-режиме.
+
+    Команда перебирает проекты из config.yaml, находит открытые MR для пары веток target-а
+    (from→to) и для каждого MR печатает Jira-задачи, найденные в коммитах (аналогично `get issues`).
+    В конце печатается сводный список всех найденных MR.
+    """
+    setup_logging(verbose)
+
+    if not batch:
+        raise typer.BadParameter("Команда поддерживает только batch-режим. Укажите --batch.")
+    if not target:
+        raise typer.BadParameter("В batch-режиме необходимо указать --target (например --target stage)")
+
+    cfg = ctx.obj["config"]
+    d = _resolve_defaults(cfg)
+
+    gitlab_token = gitlab_token or d["gitlab_token"]
+    jira_base = jira_base or d["jira_base"]
+    jira_user = jira_user or d["jira_user"] or None
+    jira_token = jira_token or d["jira_token"] or None
+    user_agent = user_agent or d["user_agent"]
+    jira_key_re = jira_key_re or d["jira_key_re"]
+    ignore_pattern = ignore_pattern if ignore_pattern is not None else d["ignore_patterns"]
+    jira_project = jira_project or d["jira_project"] or None
+    insecure = insecure if insecure is not None else d["gitlab_insecure"]
+
+    if not gitlab_token:
+        raise typer.BadParameter("Не задан токен GitLab. Укажите --gitlab-token или env GITLAB_TOKEN")
+
+    if insecure:
+        try:
+            import urllib3  # type: ignore
+
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        except Exception:
+            pass
+
+    projects = cfg_projects(cfg)
+    if not projects:
+        err_console.print("В config.yaml не определены проекты (projects).")
+        raise typer.Exit(code=1)
+
+    projects_sorted = sorted(projects, key=lambda p: p.get("deploy", {}).get("order", 999))
+
+    try:
+        jira_client = build_jira_client(
+            jira_base,
+            token=jira_token,
+            user=jira_user,
+            insecure=insecure,
+            user_agent=user_agent,
+        )
+    except Exception as e:
+        err_console.print(f"Не удалось подключиться к Jira: {e}")
+        raise typer.Exit(code=4)
+
+    key_rx, ignore_rx = compile_regexps(jira_key_re, ignore_pattern)
+    root_cache: Dict[str, JiraRootIssue] = {}
+    gl_cache: Dict[str, Any] = {}
+
+    all_mrs: List[OpenMr] = []
+
+    for proj in projects_sorted:
+        proj_id = proj.get("id", proj.get("name", "unknown"))
+        targets = proj.get("targets", {})
+        if target not in targets:
+            console.print(f"[dim]⏭  {proj_id}: target '{target}' не определён, пропускаем.[/dim]")
+            continue
+
+        repo_url = proj.get("repo_url", "")
+        if not repo_url:
+            err_console.print(f"Проект {proj_id}: не указан repo_url, пропускаем.")
+            continue
+
+        t = targets[target]
+        env_from = t.get("from", "")
+        env_to = t.get("to", "")
+        if not env_from or not env_to:
+            err_console.print(f"Проект {proj_id}: target '{target}' не содержит from/to, пропускаем.")
+            continue
+
+        host, project_path = parse_repo_url(repo_url)
+        gitlab_base = gitlab_url_override or f"https://{host}"
+
+        gl = gl_cache.get(gitlab_base)
+        if gl is None:
+            try:
+                gl = build_gitlab_client(gitlab_base, gitlab_token, insecure=insecure)
+            except Exception as e:
+                err_console.print(f"Не удалось аутентифицироваться в GitLab ({gitlab_base}): {e}")
+                continue
+            gl_cache[gitlab_base] = gl
+
+        try:
+            project = gl.projects.get(project_path)
+        except Exception as e:
+            err_console.print(f"Ошибка при получении проекта GitLab {project_path}: {e}")
+            continue
+
+        open_mrs = _list_open_mrs_for_env(
+            project=project,
+            project_id=str(proj_id),
+            project_path=project_path,
+            env_from=env_from,
+            env_to=env_to,
+            target_name=target,
+        )
+
+        if not open_mrs:
+            console.print(f"[dim]— {proj_id}: открытых MR для '{env_from}' → '{env_to}' не найдено.[/dim]")
+            continue
+
+        console.print(f"\n[bold]{'=' * 60}[/bold]")
+        console.print(f"[bold]📦 Проект: {proj_id}[/bold]  ({env_from} → {env_to})")
+        console.print(f"[bold]{'=' * 60}[/bold]")
+
+        for mr_info in open_mrs:
+            # Коммиты MR
+            try:
+                mr_obj = project.mergerequests.get(mr_info.iid)
+                commits = [
+                    {
+                        "title": getattr(c, "title", "") or "",
+                        "message": getattr(c, "message", "") or "",
+                    }
+                    for c in mr_obj.commits()
+                ]
+            except Exception as e:
+                err_console.print(f"Ошибка при получении коммитов MR {proj_id}!{mr_info.iid}: {e}")
+                continue
+
+            root_issues = extract_root_issues_from_commits_cached(
+                commits=commits,
+                key_rx=key_rx,
+                ignore_rx=ignore_rx,
+                jira_client=jira_client,
+                jira_project=jira_project,
+                cache=root_cache,
+            )
+
+            # Детальный вывод как в get issues
+            mr_title = mr_info.title or f"MR !{mr_info.iid}"
+            project_title = f"{proj_id}: {mr_title}  ({mr_info.source_branch} → {mr_info.target_branch})"
+            if root_issues:
+                render_output(
+                    root_issues,
+                    jira_base=jira_base,
+                    fmt=fmt.lower(),
+                    mr_url=mr_info.web_url,
+                    project_name=project_title,
+                )
+            else:
+                print(project_title)
+                print(f"MR - {mr_info.web_url}")
+                print()
+                print("- (Jira задачи не найдены в коммитах этого MR)")
+
+            all_mrs.append(mr_info)
+
+    console.print(f"\n[bold]{'=' * 60}[/bold]")
+    console.print(f"[bold]Сводка: открытые MR для target '{target}'[/bold]")
+    console.print(f"[bold]{'=' * 60}[/bold]")
+
+    if not all_mrs:
+        console.print("[yellow]Открытые MR не найдены.[/yellow]")
+        raise typer.Exit(code=0)
+
+    console.print(f"Найдено MR: [bold]{len(all_mrs)}[/bold]")
+    for mr in all_mrs:
+        console.print(f"- {mr.project_id}: {mr.web_url}")
 
 
 # ============================ Команда: create release ===========================
