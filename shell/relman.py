@@ -29,6 +29,7 @@ relman.py — CLI-инструмент для управления релиза�
 - USER_AGENT — User-Agent для Jira-запросов (при использовании прямого HTTP — не требуется с библиотеками)
 
 Примеры:
+
 # Помощь:
     ./relman.py --help
     ./relman.py get issues --help
@@ -104,8 +105,16 @@ except Exception:
     raise
 
 
+_DOC = __doc__ or ""
+_EXAMPLES_EPILOG: Optional[str] = None
+if "Примеры:" in _DOC:
+    _examples_tail = _DOC.split("Примеры:", 1)[1].strip("\n")
+    if _examples_tail.strip():
+        _EXAMPLES_EPILOG = "Примеры:\n" + _examples_tail.strip()
+
 app = typer.Typer(
     help="CLI-инструмент для управления релизами в GitLab и Jira",
+    epilog=_EXAMPLES_EPILOG,
     rich_markup_mode="rich",
     no_args_is_help=True,
 )
