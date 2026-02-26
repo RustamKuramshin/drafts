@@ -1,4 +1,5 @@
 import importlib.util
+import datetime as _dt
 import pathlib
 import sys
 import unittest
@@ -41,6 +42,15 @@ class RelmanPureFunctionsTest(unittest.TestCase):
         ]
         keys = relman.extract_jira_keys_from_commits(commits, key_rx=key_rx, ignore_rx=ignore_rx)
         self.assertEqual(keys, {"MMBT-1", "MMBT-3"})
+
+    def test_build_fix_skip_ci_branch_name_uses_minutes_without_seconds(self) -> None:
+        now = _dt.datetime(2026, 2, 26, 20, 24, 59)
+        self.assertEqual(relman.build_fix_skip_ci_branch_name(now), "chore/fix-skip-ci-20260226-2024")
+
+    def test_append_empty_line_adds_blank_line_at_end(self) -> None:
+        self.assertEqual(relman._append_empty_line("a\n"), "a\n\n")
+        self.assertEqual(relman._append_empty_line("a"), "a\n\n")
+        self.assertEqual(relman._append_empty_line("a\n\n"), "a\n\n")
 
 
 if __name__ == "__main__":

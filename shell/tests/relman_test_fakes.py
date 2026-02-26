@@ -48,6 +48,8 @@ class FakeMR:
 class FakeMergeRequests:
     def __init__(self, *, mrs: Iterable[FakeMR]) -> None:
         self._mrs_by_iid: Dict[int, FakeMR] = {int(m.iid): m for m in mrs}
+        self.create_calls: List[Dict[str, Any]] = []
+        self.last_create_payload: Optional[Dict[str, Any]] = None
 
     def list(self, **kwargs: Any) -> List[FakeMR]:
         # Минимальная реализация фильтрации, достаточная для _list_open_mrs_for_env.
@@ -75,6 +77,8 @@ class FakeMergeRequests:
 
     def create(self, payload: Dict[str, Any]) -> FakeMR:
         # Создаём MR с новым IID.
+        self.create_calls.append(dict(payload))
+        self.last_create_payload = dict(payload)
         next_iid = (max(self._mrs_by_iid.keys()) + 1) if self._mrs_by_iid else 1
         mr = FakeMR(
             iid=next_iid,
@@ -83,8 +87,52 @@ class FakeMergeRequests:
             source_branch=payload.get("source_branch", ""),
             target_branch=payload.get("target_branch", ""),
         )
+        # Доп. атрибуты, которые могут быть важны для тестов.
+        if "remove_source_branch" in payload:
+            setattr(mr, "remove_source_branch", payload.get("remove_source_branch"))
         self._mrs_by_iid[next_iid] = mr
         return mr
+
+
+@dataclass
+class FakeFile:
+    file_path: str
+    content: str
+
+    def decode(self) -> str:
+        return self.content
+
+
+class FakeFiles:
+    def __init__(self, files: Dict[str, str]) -> None:
+        # file_path -> content
+        self._files = dict(files)
+
+    def get(self, file_path: str, ref: str = "") -> FakeFile:
+        _ = ref
+        if file_path not in self._files:
+            raise KeyError(f"file {file_path} not found")
+        return FakeFile(file_path=file_path, content=self._files[file_path])
+
+    def _update_content(self, file_path: str, content: str) -> None:
+        self._files[file_path] = content
+
+
+class FakeCommits:
+    def __init__(self, files: FakeFiles) -> None:
+        self._files = files
+        self.create_calls: List[Dict[str, Any]] = []
+
+    def create(self, payload: Dict[str, Any]) -> Any:
+        # Минимально поддерживаем actions для update.
+        self.create_calls.append(dict(payload))
+        actions = payload.get("actions") or []
+        for a in actions:
+            if a.get("action") == "update":
+                fp = a.get("file_path")
+                if fp:
+                    self._files._update_content(fp, a.get("content", ""))
+        return SimpleNamespace(id="fake-commit")
 
 
 class FakeTags:
@@ -120,10 +168,13 @@ class FakeProject:
         tags: Optional[List[str]] = None,
         compare_payload: Optional[Dict[str, Any]] = None,
         branches: Optional[List[str]] = None,
+        files: Optional[Dict[str, str]] = None,
     ) -> None:
         self.mergerequests = FakeMergeRequests(mrs=mrs)
         self.tags = FakeTags(tags or [])
         self.branches = FakeBranches(existing=branches)
+        self.files = FakeFiles(files or {})
+        self.commits = FakeCommits(self.files)
         self._compare_payload = compare_payload or {
             "commits": [{"title": "MMBT-1 commit", "message": ""}],
             "diffs": [{"old_path": "a", "new_path": "a"}],

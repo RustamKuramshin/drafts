@@ -1,5 +1,7 @@
 import json
+import datetime as _dt
 import pathlib
+import re
 import sys
 import importlib.util
 import tempfile
@@ -489,6 +491,118 @@ class RelmanCliMainCommandsTest(unittest.TestCase):
 
         self.assertEqual(res.exit_code, 0, msg=strip_ansi(res.output))
         self.assertEqual(exec_mock.call_count, 2)
+
+    def test_fix_skip_ci_single_creates_technical_mr(self) -> None:
+        cfg_path = self._write_cfg({"version": 1, "defaults": {}, "projects": []})
+        mr_url = "https://gitlab.example.com/group/proj/-/merge_requests/123"
+
+        mr = FakeMR(
+            iid=123,
+            title="Blocked",
+            web_url=mr_url,
+            source_branch="dev",
+            target_branch="stage",
+            commits=[
+                FakeCommit(title="MMBT-1 normal", message="", committed_date="2026-01-01T10:00:00+00:00"),
+                FakeCommit(title="[skip ci]", message="MMBT-1 do thing", committed_date="2026-01-02T10:00:00+00:00"),
+            ],
+        )
+        fake_project = FakeProject(mrs=[mr], files={"README.md": "hello\n"})
+        fake_gl = FakeGitlab({"group/proj": fake_project})
+
+        with patch.object(relman, "build_gitlab_client", return_value=fake_gl):
+            res = self.runner.invoke(
+                relman.app,
+                [
+                    "--config",
+                    str(cfg_path),
+                    "fix",
+                    "skip-ci",
+                    mr_url,
+                    "--gitlab-token",
+                    "gl-token",
+                ],
+            )
+
+        self.assertEqual(res.exit_code, 0, msg=strip_ansi(res.output))
+        out = strip_ansi(res.output)
+        self.assertIn("Созданные технические MR", out)
+        self.assertIn("https://gitlab.example.com/mr/124", out)
+
+        created_branches = [b for b in fake_project.branches._existing if b.startswith("chore/fix-skip-ci-")]
+        self.assertEqual(len(created_branches), 1)
+        self.assertRegex(created_branches[0], r"^chore/fix-skip-ci-\d{8}-\d{4}(-\d+)?(-\d+)?$")
+        self.assertEqual(len(fake_project.commits.create_calls), 1)
+
+        last_mr_payload = fake_project.mergerequests.last_create_payload or {}
+        self.assertEqual(last_mr_payload.get("target_branch"), "dev")
+        self.assertTrue(last_mr_payload.get("remove_source_branch"))
+
+        updated_readme = fake_project.files.get(file_path="README.md", ref="dev").decode()
+        self.assertTrue(updated_readme.endswith("\n\n"))
+
+    def test_fix_skip_ci_batch_creates_only_for_matching_mrs(self) -> None:
+        cfg_path = self._write_cfg(
+            {
+                "version": 1,
+                "defaults": {},
+                "projects": [
+                    {
+                        "id": "p1",
+                        "name": "p1",
+                        "repo_url": "https://gitlab.example.com/group/proj",
+                        "targets": {"stage": {"from": "dev", "to": "stage"}},
+                    }
+                ],
+            }
+        )
+
+        mr_skip = FakeMR(
+            iid=10,
+            title="Dev->Stage",
+            web_url="https://gitlab.example.com/group/proj/-/merge_requests/10",
+            source_branch="dev",
+            target_branch="stage",
+            commits=[
+                FakeCommit(title="MMBT-1 normal", message="", committed_date="2026-01-01T10:00:00+00:00"),
+                FakeCommit(title="[SKIP CI]", message="MMBT-1 do thing", committed_date="2026-01-02T10:00:00+00:00"),
+            ],
+        )
+        mr_no_skip = FakeMR(
+            iid=11,
+            title="Dev->Stage",
+            web_url="https://gitlab.example.com/group/proj/-/merge_requests/11",
+            source_branch="dev",
+            target_branch="stage",
+            commits=[
+                FakeCommit(title="[skip ci] old", message="", committed_date="2026-01-01T10:00:00+00:00"),
+                FakeCommit(title="MMBT-2 normal", message="", committed_date="2026-01-02T10:00:00+00:00"),
+            ],
+        )
+
+        fake_project = FakeProject(mrs=[mr_skip, mr_no_skip], files={"README.md": "hello\n"})
+        fake_gl = FakeGitlab({"group/proj": fake_project})
+
+        with patch.object(relman, "build_gitlab_client", return_value=fake_gl):
+            res = self.runner.invoke(
+                relman.app,
+                [
+                    "--config",
+                    str(cfg_path),
+                    "fix",
+                    "skip-ci",
+                    "--batch",
+                    "--target",
+                    "stage",
+                    "--gitlab-token",
+                    "gl-token",
+                ],
+            )
+
+        self.assertEqual(res.exit_code, 0, msg=strip_ansi(res.output))
+        out = strip_ansi(res.output)
+        self.assertIn("Созданные технические MR", out)
+        self.assertEqual(len(fake_project.mergerequests.create_calls), 1)
 
 
 if __name__ == "__main__":

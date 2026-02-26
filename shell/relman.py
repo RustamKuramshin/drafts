@@ -95,6 +95,7 @@ def _build_examples_epilog() -> str:
         "[bold]Помощь[/bold]",
         "[dim]$[/dim] ./relman.py --help",
         "[dim]$[/dim] ./relman.py get issues --help",
+        "[dim]$[/dim] ./relman.py fix skip-ci --help",
         "",
         "[bold]Получить список задач[/bold]",
         "[dim]$[/dim] ./relman.py get issues https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808",
@@ -122,6 +123,10 @@ def _build_examples_epilog() -> str:
         "[bold]Batch-обработка получения списка открытых MR для окружения[/bold]",
         "[dim]$[/dim] ./relman.py get mrs --batch --target \"prod\"",
         "[dim]$[/dim] ./relman.py get mrs --batch --target \"stage\"",
+        "",
+        "[bold]Разблокировать MR с skip-ci (создать технический MR)[/bold]",
+        "[dim]$[/dim] ./relman.py fix skip-ci https://gitlab.platform.corp/magnitonline/mm/backend/ke-backend/-/merge_requests/1808",
+        "[dim]$[/dim] ./relman.py fix skip-ci --batch --target \"stage\"",
     ]
     return "\n\n".join(lines)
 
@@ -332,6 +337,12 @@ create_app = typer.Typer(
 )
 app.add_typer(create_app, name="create")
 
+fix_app = typer.Typer(
+    help="Команды исправления проблемных MR (например, unblock pipeline)",
+    no_args_is_help=True,
+)
+app.add_typer(fix_app, name="fix")
+
 console = Console(stderr=False)
 err_console = Console(stderr=True, style="bold red")
 
@@ -536,6 +547,99 @@ def _head_commit_has_skip_ci(commits: Sequence[Dict[str, Any]]) -> bool:
     if not head:
         return False
     return _commit_has_skip_ci(head)
+
+
+_FIX_SKIP_CI_BRANCH_PREFIX = "chore/fix-skip-ci-"
+_FIX_SKIP_CI_COMMIT_MESSAGE = "chore: fix blocking pipeline"
+_FIX_SKIP_CI_FILE_CANDIDATES: Sequence[str] = ("README.md", ".gitignore", "pom.xml")
+
+
+def build_fix_skip_ci_branch_name(now: datetime) -> str:
+    """Имя сервисной ветки для фикса skip-ci.
+
+    Формат: chore/fix-skip-ci-YYYYMMDD-HHMM (локальное время, без секунд).
+    """
+    return f"{_FIX_SKIP_CI_BRANCH_PREFIX}{now.strftime('%Y%m%d-%H%M')}"
+
+
+def _append_empty_line(text: str) -> str:
+    # Техническое изменение: добавить пустую строку в конец файла.
+    # Стараемся не менять содержимое сильнее, чем нужно.
+    if text.endswith("\n\n"):
+        return text
+    if text.endswith("\n"):
+        return text + "\n"
+    return text + "\n\n"
+
+
+def _decode_gitlab_file_content(file_obj: Any) -> str:
+    # python-gitlab ProjectFile обычно предоставляет .decode()
+    if hasattr(file_obj, "decode") and callable(getattr(file_obj, "decode")):
+        decoded = file_obj.decode()
+        return decoded if isinstance(decoded, str) else str(decoded)
+
+    # Fallback: base64 content
+    content = getattr(file_obj, "content", None)
+    if isinstance(content, str):
+        try:
+            return base64.b64decode(content).decode("utf-8")
+        except Exception:
+            return content
+
+    raise ValueError("Не удалось декодировать содержимое файла из GitLab API")
+
+
+def _is_not_found_error(e: Exception) -> bool:
+    if isinstance(e, KeyError):
+        return True
+    code = getattr(e, "response_code", None)
+    if code == 404:
+        return True
+    return "404" in str(e)
+
+
+def _pick_file_for_technical_commit(project: Any, ref: str) -> str:
+    """Выбирает существующий файл-кандидат в корне репозитория."""
+    for fp in _FIX_SKIP_CI_FILE_CANDIDATES:
+        try:
+            project.files.get(file_path=fp, ref=ref)
+            return fp
+        except Exception as e:
+            if _is_not_found_error(e):
+                continue
+            raise
+    raise typer.BadParameter(
+        "Не найден подходящий файл для технического коммита в корне репозитория. "
+        "Проверены: " + ", ".join(_FIX_SKIP_CI_FILE_CANDIDATES)
+    )
+
+
+def _create_unique_branch(project: Any, *, base_name: str, ref: str, suffix: str) -> str:
+    """Создать ветку, избегая коллизий имён (на случай batch-режима)."""
+    candidates = [base_name, f"{base_name}-{suffix}", f"{base_name}-{suffix}-2", f"{base_name}-{suffix}-3"]
+    last_err: Optional[Exception] = None
+    for name in candidates:
+        try:
+            project.branches.create({
+                "branch": name,
+                "ref": ref,
+            })
+            return name
+        except Exception as e:
+            last_err = e
+            msg = str(e)
+            if "already exists" in msg or "Branch already exists" in msg:
+                continue
+            raise
+    raise typer.Exit(code=7)
+
+
+@dataclass(frozen=True)
+class FixSkipCiMrResult:
+    project_id: str
+    original_mr_url: str
+    technical_mr_url: str
+    technical_mr_title: str
 
 
 def urlencode_path(p: str) -> str:
@@ -2163,6 +2267,257 @@ def _execute_create_mr(
         title=mr_title,
         created=True,
     )
+
+
+# ============================ Команда: fix skip-ci =============================
+
+
+def _execute_fix_skip_ci_for_mr_obj(
+    *,
+    project: Any,
+    project_id: str,
+    mr: Any,
+    now: datetime,
+) -> FixSkipCiMrResult:
+    source_branch = getattr(mr, "source_branch", "") or ""
+    if not source_branch:
+        raise typer.BadParameter("Не удалось определить source_branch у MR")
+
+    base_branch = build_fix_skip_ci_branch_name(now)
+    service_branch = _create_unique_branch(
+        project,
+        base_name=base_branch,
+        ref=source_branch,
+        suffix=str(getattr(mr, "iid", "mr")),
+    )
+
+    file_path = _pick_file_for_technical_commit(project, ref=service_branch)
+    file_obj = project.files.get(file_path=file_path, ref=service_branch)
+    content = _decode_gitlab_file_content(file_obj)
+    new_content = _append_empty_line(content)
+
+    project.commits.create(
+        {
+            "branch": service_branch,
+            "commit_message": _FIX_SKIP_CI_COMMIT_MESSAGE,
+            "actions": [
+                {
+                    "action": "update",
+                    "file_path": file_path,
+                    "content": new_content,
+                }
+            ],
+        }
+    )
+
+    original_mr_url = getattr(mr, "web_url", "") or ""
+    mr_payload: Dict[str, Any] = {
+        "source_branch": service_branch,
+        "target_branch": source_branch,
+        "title": _FIX_SKIP_CI_COMMIT_MESSAGE,
+        "remove_source_branch": True,
+    }
+    if original_mr_url:
+        mr_payload["description"] = f"Автоматический фикс для разблокировки пайплайна (skip-ci).\n\nПроблемный MR: {original_mr_url}"  # noqa: E501
+
+    technical_mr = project.mergerequests.create(mr_payload)
+    return FixSkipCiMrResult(
+        project_id=project_id,
+        original_mr_url=original_mr_url,
+        technical_mr_url=getattr(technical_mr, "web_url", "") or "",
+        technical_mr_title=getattr(technical_mr, "title", _FIX_SKIP_CI_COMMIT_MESSAGE) or _FIX_SKIP_CI_COMMIT_MESSAGE,
+    )
+
+
+@fix_app.command("skip-ci")
+def fix_skip_ci(
+    ctx: typer.Context,
+    mr_url: Optional[str] = typer.Argument(
+        None,
+        help="Ссылка на проблемный MR в GitLab. В batch-режиме не требуется.",
+    ),
+    batch: bool = typer.Option(False, "--batch", help="Batch-режим: перебрать все проекты из config.yaml"),
+    target: Optional[str] = typer.Option(None, "--target", help="Имя target из config.yaml (например stage, prod)."),
+    gitlab_token: Optional[str] = typer.Option(
+        default=None,
+        help="Токен GitLab (env: GITLAB_TOKEN)",
+        rich_help_panel="GitLab",
+    ),
+    gitlab_url_override: Optional[str] = typer.Option(
+        default=None,
+        help="База GitLab API/Host (по умолчанию берётся из MR-URL или repo_url).",
+        rich_help_panel="GitLab",
+    ),
+    insecure: Optional[bool] = typer.Option(
+        default=None,
+        help="Игнорировать проверку SSL-сертификатов (как curl -k).",
+    ),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Подробный вывод"),
+) -> None:
+    """Разблокировать MR, у которого пайплайн заблокирован из-за skip-ci.
+
+    Алгоритм:
+    1) Создать сервисную ветку от source_branch проблемного MR.
+    2) Сделать технический коммит (пустая строка в одном из файлов-кандидатов).
+    3) Создать новый MR из сервисной ветки в source_branch проблемного MR.
+    """
+
+    setup_logging(verbose)
+
+    cfg = ctx.obj["config"]
+    d = _resolve_defaults(cfg)
+
+    gitlab_token = gitlab_token or d["gitlab_token"]
+    insecure = insecure if insecure is not None else d["gitlab_insecure"]
+
+    if not gitlab_token:
+        raise typer.BadParameter("Не задан токен GitLab. Укажите --gitlab-token или env GITLAB_TOKEN")
+
+    if insecure:
+        try:
+            import urllib3  # type: ignore
+
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        except Exception:
+            pass
+
+    now = datetime.now()
+    results: List[FixSkipCiMrResult] = []
+
+    if not batch:
+        if not mr_url:
+            raise typer.BadParameter("Укажите MR URL или используйте --batch")
+
+        host, project_path, iid = parse_mr_url(mr_url)
+        gitlab_base = gitlab_url_override or f"https://{host}"
+
+        try:
+            gl = build_gitlab_client(gitlab_base, gitlab_token, insecure=insecure)
+        except Exception as e:
+            err_console.print(f"Не удалось аутентифицироваться в GitLab: {e}")
+            raise typer.Exit(code=2)
+
+        try:
+            project = gl.projects.get(project_path)
+            mr_obj = project.mergerequests.get(iid)
+        except Exception as e:
+            err_console.print(f"Ошибка при получении MR: {e}")
+            raise typer.Exit(code=2)
+
+        commits = [
+            {
+                "title": getattr(c, "title", "") or "",
+                "message": getattr(c, "message", "") or "",
+                "committed_date": getattr(c, "committed_date", "") or "",
+                "created_at": getattr(c, "created_at", "") or "",
+                "authored_date": getattr(c, "authored_date", "") or "",
+            }
+            for c in mr_obj.commits()
+        ]
+        if not _head_commit_has_skip_ci(commits):
+            console.print("[green]✔ MR не содержит skip-ci в верхнем коммите. Исправление не требуется.[/green]")
+            raise typer.Exit(code=0)
+
+        project_name = project_path.rsplit("/", 1)[-1]
+        try:
+            r = _execute_fix_skip_ci_for_mr_obj(project=project, project_id=project_name, mr=mr_obj, now=now)
+        except Exception as e:
+            err_console.print(f"Ошибка при исправлении MR: {e}")
+            raise typer.Exit(code=7)
+
+        results.append(r)
+
+    else:
+        if not target:
+            raise typer.BadParameter("В batch-режиме необходимо указать --target (например --target stage)")
+
+        projects = cfg_projects(cfg)
+        if not projects:
+            err_console.print("В config.yaml не определены проекты (projects).")
+            raise typer.Exit(code=1)
+
+        projects_sorted = sorted(projects, key=lambda p: p.get("deploy", {}).get("order", 999))
+        gl_cache: Dict[str, Any] = {}
+
+        for proj in projects_sorted:
+            proj_id = str(proj.get("id", proj.get("name", "unknown")))
+            targets = proj.get("targets", {})
+            if target not in targets:
+                continue
+
+            repo_url = proj.get("repo_url", "")
+            if not repo_url:
+                continue
+
+            t = targets[target]
+            env_from = t.get("from", "")
+            env_to = t.get("to", "")
+            if not env_from or not env_to:
+                continue
+
+            host, project_path = parse_repo_url(repo_url)
+            gitlab_base = gitlab_url_override or f"https://{host}"
+
+            gl = gl_cache.get(gitlab_base)
+            if gl is None:
+                try:
+                    gl = build_gitlab_client(gitlab_base, gitlab_token, insecure=insecure)
+                except Exception as e:
+                    err_console.print(f"Не удалось аутентифицироваться в GitLab ({gitlab_base}): {e}")
+                    continue
+                gl_cache[gitlab_base] = gl
+
+            try:
+                project = gl.projects.get(project_path)
+            except Exception as e:
+                err_console.print(f"Ошибка при получении проекта GitLab {project_path}: {e}")
+                continue
+
+            open_mrs = _list_open_mrs_for_env(
+                project=project,
+                project_id=proj_id,
+                project_path=project_path,
+                env_from=env_from,
+                env_to=env_to,
+                target_name=target,
+            )
+            if not open_mrs:
+                continue
+
+            for mr_info in open_mrs:
+                try:
+                    mr_obj = project.mergerequests.get(mr_info.iid)
+                    commits = [
+                        {
+                            "title": getattr(c, "title", "") or "",
+                            "message": getattr(c, "message", "") or "",
+                            "committed_date": getattr(c, "committed_date", "") or "",
+                            "created_at": getattr(c, "created_at", "") or "",
+                            "authored_date": getattr(c, "authored_date", "") or "",
+                        }
+                        for c in mr_obj.commits()
+                    ]
+                except Exception as e:
+                    err_console.print(f"Ошибка при получении MR {proj_id}!{mr_info.iid}: {e}")
+                    continue
+
+                if not _head_commit_has_skip_ci(commits):
+                    continue
+
+                try:
+                    r = _execute_fix_skip_ci_for_mr_obj(project=project, project_id=proj_id, mr=mr_obj, now=now)
+                except Exception as e:
+                    err_console.print(f"{proj_id}!{mr_info.iid}: не удалось создать технический MR: {e}")
+                    continue
+                results.append(r)
+
+    if not results:
+        console.print("[yellow]Проблемных MR со skip-ci не найдено.[/yellow]")
+        raise typer.Exit(code=0)
+
+    console.print("\n[bold]Созданные технические MR для разблокировки пайплайна:[/bold]")
+    for r in results:
+        console.print(f"- {r.project_id}: {r.technical_mr_url}")
 
 
 # ============================ Точка входа =======================================
