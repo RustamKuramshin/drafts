@@ -565,8 +565,6 @@ def build_fix_skip_ci_branch_name(now: datetime) -> str:
 def _append_empty_line(text: str) -> str:
     # Техническое изменение: добавить пустую строку в конец файла.
     # Стараемся не менять содержимое сильнее, чем нужно.
-    if text.endswith("\n\n"):
-        return text
     if text.endswith("\n"):
         return text + "\n"
     return text + "\n\n"
@@ -576,7 +574,15 @@ def _decode_gitlab_file_content(file_obj: Any) -> str:
     # python-gitlab ProjectFile обычно предоставляет .decode()
     if hasattr(file_obj, "decode") and callable(getattr(file_obj, "decode")):
         decoded = file_obj.decode()
-        return decoded if isinstance(decoded, str) else str(decoded)
+        if isinstance(decoded, str):
+            return decoded
+        if isinstance(decoded, (bytes, bytearray)):
+            # python-gitlab может вернуть bytes. Важно не превращать их в "b'...'".
+            try:
+                return bytes(decoded).decode("utf-8")
+            except Exception:
+                return bytes(decoded).decode("utf-8", errors="replace")
+        return str(decoded)
 
     # Fallback: base64 content
     content = getattr(file_obj, "content", None)
@@ -585,6 +591,16 @@ def _decode_gitlab_file_content(file_obj: Any) -> str:
             return base64.b64decode(content).decode("utf-8")
         except Exception:
             return content
+
+    if isinstance(content, (bytes, bytearray)):
+        try:
+            return base64.b64decode(bytes(content)).decode("utf-8")
+        except Exception:
+            # Если это не base64 или есть проблемы с декодированием — вернём как текст с заменой.
+            try:
+                return bytes(content).decode("utf-8")
+            except Exception:
+                return bytes(content).decode("utf-8", errors="replace")
 
     raise ValueError("Не удалось декодировать содержимое файла из GitLab API")
 

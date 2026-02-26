@@ -50,7 +50,18 @@ class RelmanPureFunctionsTest(unittest.TestCase):
     def test_append_empty_line_adds_blank_line_at_end(self) -> None:
         self.assertEqual(relman._append_empty_line("a\n"), "a\n\n")
         self.assertEqual(relman._append_empty_line("a"), "a\n\n")
-        self.assertEqual(relman._append_empty_line("a\n\n"), "a\n\n")
+        # Даже если файл уже оканчивается пустой строкой, мы должны гарантировать изменение,
+        # иначе GitLab может создать «пустой» коммит/ MR без diff.
+        self.assertEqual(relman._append_empty_line("a\n\n"), "a\n\n\n")
+
+    def test_decode_gitlab_file_content_handles_bytes_without_repr(self) -> None:
+        class _F:
+            def decode(self) -> bytes:  # type: ignore[override]
+                return b"line1\nline2\n"
+
+        txt = relman._decode_gitlab_file_content(_F())
+        self.assertEqual(txt, "line1\nline2\n")
+        self.assertNotIn("b'", txt)
 
 
 if __name__ == "__main__":

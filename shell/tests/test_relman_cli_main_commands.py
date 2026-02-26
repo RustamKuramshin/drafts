@@ -541,6 +541,52 @@ class RelmanCliMainCommandsTest(unittest.TestCase):
         updated_readme = fake_project.files.get(file_path="README.md", ref="dev").decode()
         self.assertTrue(updated_readme.endswith("\n\n"))
 
+    def test_fix_skip_ci_single_creates_diff_even_if_readme_already_has_trailing_blank_line(self) -> None:
+        cfg_path = self._write_cfg({"version": 1, "defaults": {}, "projects": []})
+        mr_url = "https://gitlab.example.com/group/proj/-/merge_requests/123"
+
+        mr = FakeMR(
+            iid=123,
+            title="Blocked",
+            web_url=mr_url,
+            source_branch="dev",
+            target_branch="stage",
+            commits=[
+                FakeCommit(title="MMBT-1 normal", message="", committed_date="2026-01-01T10:00:00+00:00"),
+                FakeCommit(title="[skip ci]", message="MMBT-1 do thing", committed_date="2026-01-02T10:00:00+00:00"),
+            ],
+        )
+
+        initial_readme = "hello\n\n"
+        fake_project = FakeProject(mrs=[mr], files={"README.md": initial_readme})
+        fake_gl = FakeGitlab({"group/proj": fake_project})
+
+        with patch.object(relman, "build_gitlab_client", return_value=fake_gl):
+            res = self.runner.invoke(
+                relman.app,
+                [
+                    "--config",
+                    str(cfg_path),
+                    "fix",
+                    "skip-ci",
+                    mr_url,
+                    "--gitlab-token",
+                    "gl-token",
+                ],
+            )
+
+        self.assertEqual(res.exit_code, 0, msg=strip_ansi(res.output))
+
+        updated_readme = fake_project.files.get(file_path="README.md", ref="dev").decode()
+        self.assertNotEqual(updated_readme, initial_readme)
+        self.assertEqual(updated_readme, "hello\n\n\n")
+
+        # Убедимся, что в GitLab commit API ушло именно изменённое содержимое.
+        last_commit_payload = fake_project.commits.create_calls[-1]
+        actions = last_commit_payload.get("actions") or []
+        self.assertEqual(actions[0].get("file_path"), "README.md")
+        self.assertEqual(actions[0].get("content"), "hello\n\n\n")
+
     def test_fix_skip_ci_batch_creates_only_for_matching_mrs(self) -> None:
         cfg_path = self._write_cfg(
             {
