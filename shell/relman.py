@@ -46,6 +46,8 @@ from typing import List, Optional, Sequence, Tuple, Dict, Any, Set
 import requests as _requests
 import yaml
 
+from relman_config_utils import resolve_repo_url_from_config, select_projects_for_batch
+
 def _import_or_exit(module: str, pkg_hint: str) -> Any:
     try:
         return __import__(module)
@@ -106,9 +108,11 @@ def _build_examples_epilog() -> str:
         "",
         "[bold]Создать MR в GitLab с упоминанием Jira-задач из коммитов[/bold]",
         "[dim]$[/dim] ./relman.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql --from \"development\" --to \"stage\"",
+        "[dim]$[/dim] ./relman.py create mr api-graphql --from \"development\" --to \"stage\"",
         "",
         "[bold]Создать MR и Release в Jira[/bold]",
         "[dim]$[/dim] ./relman.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-payment-service --from \"development\" --to \"stage\" --jira-project \"MMBT\" --with-release",
+        "[dim]$[/dim] ./relman.py create mr api-payment-service --from \"development\" --to \"stage\" --jira-project \"MMBT\" --with-release",
         "",
         "[bold]Batch-обработка создания MR для всех проектов из конфига[/bold]",
         "[dim]$[/dim] ./relman.py create mr --batch --target \"prod\"",
@@ -1424,7 +1428,13 @@ def create_release(
 @create_app.command("mr")
 def create_mr(
     ctx: typer.Context,
-    repo_url: Optional[str] = typer.Argument(None, help="Ссылка на репозиторий в GitLab (https://host/group/proj). Не требуется в batch-режиме."),
+    repo_url: Optional[str] = typer.Argument(
+        None,
+        help=(
+            "Ссылка на репозиторий в GitLab (https://host/group/proj) "
+            "или name проекта из config.yaml. Не требуется в batch-режиме."
+        ),
+    ),
     source_branch: Optional[str] = typer.Option(None, "--from", help="Исходная ветка (source branch). В batch-режиме берётся из targets."),
     target_branch: Optional[str] = typer.Option(None, "--to", help="Целевая ветка (target branch). В batch-режиме берётся из targets."),
     # Batch-режим
@@ -1519,7 +1529,10 @@ def create_mr(
         if not target:
             raise typer.BadParameter("В batch-режиме необходимо указать --target (например --target stage)")
 
-        projects = cfg_projects(cfg)
+        try:
+            projects = select_projects_for_batch(cfg, repo_url)
+        except ValueError as e:
+            raise typer.BadParameter(str(e))
         if not projects:
             err_console.print("В config.yaml не определены проекты (projects).")
             raise typer.Exit(code=1)
@@ -1602,6 +1615,12 @@ def create_mr(
     # Одиночный режим — repo_url обязателен
     if not repo_url:
         raise typer.BadParameter("Укажите ссылку на репозиторий (repo_url) или используйте --batch режим.")
+
+    try:
+        repo_url = resolve_repo_url_from_config(cfg, repo_url)
+    except ValueError as e:
+        raise typer.BadParameter(str(e))
+
     if not source_branch or not target_branch:
         raise typer.BadParameter("Укажите --from и --to ветки или используйте --batch --target режим.")
 
