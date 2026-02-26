@@ -15,6 +15,7 @@ def strip_ansi(text: str) -> str:
 class FakeCommit:
     title: str = ""
     message: str = ""
+    committed_date: str = ""
 
 
 class FakeMR:

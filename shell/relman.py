@@ -40,7 +40,7 @@ import base64
 import pathlib
 import urllib.parse
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import List, Optional, Sequence, Tuple, Dict, Any, Set
 
 import requests as _requests
@@ -473,6 +473,71 @@ def extract_jira_keys_from_text(texts: Sequence[str], key_rx: re.Pattern[str]) -
     return keys
 
 
+_SKIP_CI_RX = re.compile(r"\bskip\s+ci\b", flags=re.IGNORECASE)
+
+
+def _parse_gitlab_datetime(value: str) -> Optional[datetime]:
+    if not value:
+        return None
+    v = (value or "").strip()
+    if not v:
+        return None
+    # GitLab обычно отдаёт ISO8601, иногда с 'Z'
+    if v.endswith("Z"):
+        v = v[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(v)
+    except Exception:
+        return None
+
+    # Нормализуем timezone, чтобы сравнения работали (aware vs naive).
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _commit_datetime(commit: Dict[str, Any]) -> Optional[datetime]:
+    for k in ("committed_date", "created_at", "authored_date"):
+        dt = _parse_gitlab_datetime(str(commit.get(k, "") or ""))
+        if dt is not None:
+            return dt
+    return None
+
+
+def _pick_head_commit(commits: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not commits:
+        return None
+
+    dts = [_commit_datetime(c) for c in commits]
+    if any(dt is not None for dt in dts):
+        # Берём коммит с максимальной датой (самый «верхний»)
+        best_i = 0
+        best_dt = datetime.min.replace(tzinfo=timezone.utc)
+        for i, (c, dt) in enumerate(zip(commits, dts)):
+            _ = c
+            if dt is None:
+                continue
+            if dt > best_dt:
+                best_dt = dt
+                best_i = i
+        return dict(commits[best_i])
+
+    # Если дат нет — полагаемся на порядок, который вернул API.
+    return dict(commits[0])
+
+
+def _commit_has_skip_ci(commit: Dict[str, Any]) -> bool:
+    text = f"{commit.get('title', '')}\n{commit.get('message', '')}"
+    return bool(_SKIP_CI_RX.search(text or ""))
+
+
+def _head_commit_has_skip_ci(commits: Sequence[Dict[str, Any]]) -> bool:
+    head = _pick_head_commit(commits)
+    if not head:
+        return False
+    return _commit_has_skip_ci(head)
+
+
 def urlencode_path(p: str) -> str:
     return urllib.parse.quote(p, safe="")
 
@@ -493,6 +558,9 @@ def get_mr_commits(gl: Any, host: str, project_path: str, iid: str) -> List[Dict
         {
             "title": getattr(c, "title", "") or "",
             "message": getattr(c, "message", "") or "",
+            "committed_date": getattr(c, "committed_date", "") or "",
+            "created_at": getattr(c, "created_at", "") or "",
+            "authored_date": getattr(c, "authored_date", "") or "",
         }
         for c in commits
     ]
@@ -1193,6 +1261,11 @@ def get_mrs(
         default=None,
         help="Regexp-паттерны для игнорирования коммитов по первой строке",
     ),
+    skip_ci: bool = typer.Option(
+        False,
+        "--skip-ci",
+        help="Показывать только MR, у которых верхний коммит содержит 'skip ci' (без учёта регистра).",
+    ),
     fmt: str = typer.Option(
         default=OutputFormat.MD,
         case_sensitive=False,
@@ -1316,9 +1389,12 @@ def get_mrs(
             console.print(f"[dim]— {proj_id}: открытых MR для '{env_from}' → '{env_to}' не найдено.[/dim]")
             continue
 
-        console.print(f"\n[bold]{'=' * 60}[/bold]")
-        console.print(f"[bold]📦 Проект: {proj_id}[/bold]  ({env_from} → {env_to})")
-        console.print(f"[bold]{'=' * 60}[/bold]")
+        if not skip_ci:
+            console.print(f"\n[bold]{'=' * 60}[/bold]")
+            console.print(f"[bold]📦 Проект: {proj_id}[/bold]  ({env_from} → {env_to})")
+            console.print(f"[bold]{'=' * 60}[/bold]")
+
+        printed_project_header = False
 
         for mr_info in open_mrs:
             # Коммиты MR
@@ -1328,12 +1404,24 @@ def get_mrs(
                     {
                         "title": getattr(c, "title", "") or "",
                         "message": getattr(c, "message", "") or "",
+                        "committed_date": getattr(c, "committed_date", "") or "",
+                        "created_at": getattr(c, "created_at", "") or "",
+                        "authored_date": getattr(c, "authored_date", "") or "",
                     }
                     for c in mr_obj.commits()
                 ]
             except Exception as e:
                 err_console.print(f"Ошибка при получении коммитов MR {proj_id}!{mr_info.iid}: {e}")
                 continue
+
+            if skip_ci and not _head_commit_has_skip_ci(commits):
+                continue
+
+            if skip_ci and not printed_project_header:
+                console.print(f"\n[bold]{'=' * 60}[/bold]")
+                console.print(f"[bold]📦 Проект: {proj_id}[/bold]  ({env_from} → {env_to})")
+                console.print(f"[bold]{'=' * 60}[/bold]")
+                printed_project_header = True
 
             root_issues = extract_root_issues_from_commits_cached(
                 commits=commits,
@@ -1362,6 +1450,11 @@ def get_mrs(
                 print("- (Jira задачи не найдены в коммитах этого MR)")
 
             all_mrs.append(mr_info)
+
+        if skip_ci and not printed_project_header:
+            console.print(
+                f"[dim]— {proj_id}: MR с верхним коммитом 'skip ci' для '{env_from}' → '{env_to}' не найдено.[/dim]"
+            )
 
     console.print(f"\n[bold]{'=' * 60}[/bold]")
     console.print(f"[bold]Сводка: открытые MR для target '{target}'[/bold]")

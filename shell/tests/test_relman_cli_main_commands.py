@@ -194,6 +194,92 @@ class RelmanCliMainCommandsTest(unittest.TestCase):
             self.assertIn("https://gitlab.example.com/group/proj/-/merge_requests/10", out)
             self.assertIn("https://jira.example/browse/MMBT-1", out)
 
+    def test_get_mrs_batch_skip_ci_filters_only_matching_mrs(self) -> None:
+        cfg_path = self._write_cfg(
+            {
+                "version": 1,
+                "defaults": {},
+                "projects": [
+                    {
+                        "id": "p1",
+                        "name": "p1",
+                        "repo_url": "https://gitlab.example.com/group/proj",
+                        "targets": {"stage": {"from": "dev", "to": "stage"}},
+                    }
+                ],
+            }
+        )
+
+        mr_skip = FakeMR(
+            iid=10,
+            title="Dev->Stage",
+            web_url="https://gitlab.example.com/group/proj/-/merge_requests/10",
+            source_branch="dev",
+            target_branch="stage",
+            commits=[
+                FakeCommit(title="MMBT-1 old commit", message="", committed_date="2026-01-01T10:00:00+00:00"),
+                FakeCommit(title="[SKIP CI]", message="MMBT-1 do thing", committed_date="2026-01-02T10:00:00+00:00"),
+            ],
+        )
+        mr_no_skip = FakeMR(
+            iid=11,
+            title="Dev->Stage",
+            web_url="https://gitlab.example.com/group/proj/-/merge_requests/11",
+            source_branch="dev",
+            target_branch="stage",
+            commits=[
+                FakeCommit(title="[skip ci]", message="old", committed_date="2026-01-01T10:00:00+00:00"),
+                FakeCommit(title="MMBT-2 normal", message="", committed_date="2026-01-02T10:00:00+00:00"),
+            ],
+        )
+
+        fake_gl = FakeGitlab({"group/proj": FakeProject(mrs=[mr_skip, mr_no_skip])})
+        fake_jira = FakeJira(
+            {
+                "MMBT-1": FakeJiraIssue(key="MMBT-1", summary="Issue 1"),
+                "MMBT-2": FakeJiraIssue(key="MMBT-2", summary="Issue 2"),
+            }
+        )
+
+        def _no_network(*args: object, **kwargs: object) -> None:  # pragma: no cover
+            raise AssertionError("Unexpected network call via requests")
+
+        with (
+            patch.object(relman, "build_gitlab_client", return_value=fake_gl),
+            patch.object(relman, "build_jira_client", return_value=fake_jira),
+            patch.object(relman._requests, "post", side_effect=_no_network),
+            patch.object(relman._requests, "put", side_effect=_no_network),
+        ):
+            res = self.runner.invoke(
+                relman.app,
+                [
+                    "--config",
+                    str(cfg_path),
+                    "get",
+                    "mrs",
+                    "--batch",
+                    "--target",
+                    "stage",
+                    "--skip-ci",
+                    "--gitlab-token",
+                    "gl-token",
+                    "--jira-base",
+                    "https://jira.example",
+                    "--jira-token",
+                    "jira-token",
+                    "--jira-key-re",
+                    r"MMBT-\d+",
+                    "--fmt",
+                    "urls",
+                ],
+            )
+            self.assertEqual(res.exit_code, 0, msg=strip_ansi(res.output))
+            out = strip_ansi(res.output)
+            self.assertIn("https://gitlab.example.com/group/proj/-/merge_requests/10", out)
+            self.assertIn("https://jira.example/browse/MMBT-1", out)
+            self.assertNotIn("https://gitlab.example.com/group/proj/-/merge_requests/11", out)
+            self.assertNotIn("https://jira.example/browse/MMBT-2", out)
+
     def test_create_release_requires_jira_project(self) -> None:
         cfg_path = self._write_cfg({"version": 1, "defaults": {}, "projects": []})
         mr_url = "https://gitlab.example.com/group/proj/-/merge_requests/123"
