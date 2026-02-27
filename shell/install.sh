@@ -25,6 +25,8 @@ is_script_file() {
   [[ "$ext" == "sh" || "$ext" == "py" || "$first_line" == \#!* ]]
 }
 
+installed=()
+
 while IFS= read -r -d '' src; do
   if is_script_file "$src"; then
     chmod +x "$src"
@@ -32,5 +34,15 @@ while IFS= read -r -d '' src; do
     dst="$HOME_DIR/$(basename -- "$src")"
     cp -f "$src" "$dst"
     chmod +x "$dst"
+
+    installed+=("$dst")
+    echo "Установлено: $dst"
   fi
 done < <(find "$SCRIPT_DIR" -maxdepth 1 -type f -print0)
+
+if ((${#installed[@]} > 0)); then
+  echo
+  echo "Готово. Установлено скриптов: ${#installed[@]}"
+else
+  echo "Нечего устанавливать (в каталоге нет подходящих файлов)" >&2
+fi
