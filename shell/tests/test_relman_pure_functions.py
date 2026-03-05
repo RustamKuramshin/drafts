@@ -89,6 +89,8 @@ class RelmanPureFunctionsTest(unittest.TestCase):
         out = buf.getvalue()
         self.assertIn("|__ MMBT-2:", out)
         self.assertIn("https://jira.example.com/browse/MMBT-2", out)
+        self.assertIn("\n      https://jira.example.com/browse/MMBT-2\n", out)
+        self.assertNotIn("\n  |   https://jira.example.com/browse/MMBT-2\n", out)
 
 
 if __name__ == "__main__":

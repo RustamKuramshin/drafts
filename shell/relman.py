@@ -910,7 +910,9 @@ def render_output(
             children = children_by_root.get(i.key, [])
             for c in sorted(children, key=lambda x: x.key):
                 print(f"  |__ {c.key}: ({c.issuetype}) {c.summary}")
-                print(f"  |   {c.as_url(jira_base)}")
+                # URL — это продолжение строки-узла, поэтому не рисуем дополнительную "|"
+                # под "|__", чтобы вывод выглядел ближе к привычному `tree`.
+                print(f"      {c.as_url(jira_base)}")
 
 
 # ============================ Общая логика: извлечение issue из MR ===============
