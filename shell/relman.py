@@ -1679,6 +1679,7 @@ def get_mrs(
             continue
 
         if not skip_ci:
+            console.print()
             console.print(f"[bold]Проект: {proj_id}[/bold]  ({env_from} → {env_to})")
 
         printed_project_header = False
@@ -1705,6 +1706,7 @@ def get_mrs(
                 continue
 
             if skip_ci and not printed_project_header:
+                console.print()
                 console.print(f"[bold]Проект: {proj_id}[/bold]  ({env_from} → {env_to})")
                 printed_project_header = True
 
@@ -2031,6 +2033,7 @@ def create_mr(
                 err_console.print(f"Проект {proj_id}: target '{target}' не содержит from/to, пропускаем.")
                 continue
 
+            console.print()
             console.print(f"[bold]Проект: {proj_id}[/bold]  ({proj_from} → {proj_to})")
 
             try:
