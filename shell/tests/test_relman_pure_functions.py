@@ -1,8 +1,10 @@
 import importlib.util
 import datetime as _dt
+import io
 import pathlib
 import sys
 import unittest
+from contextlib import redirect_stdout
 
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -62,6 +64,31 @@ class RelmanPureFunctionsTest(unittest.TestCase):
         txt = relman._decode_gitlab_file_content(_F())
         self.assertEqual(txt, "line1\nline2\n")
         self.assertNotIn("b'", txt)
+
+    def test_render_output_tree_shows_actual_issues_under_root(self) -> None:
+        roots = [
+            relman.JiraRootIssue("MMBT-1", "Root summary", "Epic"),
+        ]
+        children_by_root = {
+            "MMBT-1": [
+                relman.JiraRootIssue("MMBT-2", "Child summary", "Task"),
+            ]
+        }
+
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            relman.render_output(
+                roots,
+                jira_base="https://jira.example.com",
+                fmt=relman.OutputFormat.MD,
+                mr_url="MR",
+                project_name="proj",
+                children_by_root=children_by_root,
+            )
+
+        out = buf.getvalue()
+        self.assertIn("|__ MMBT-2:", out)
+        self.assertIn("https://jira.example.com/browse/MMBT-2", out)
 
 
 if __name__ == "__main__":

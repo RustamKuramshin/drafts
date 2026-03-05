@@ -849,6 +849,25 @@ def resolve_root_issue(jira_client: JIRA, key: str) -> JiraRootIssue:
         return JiraRootIssue(current, "(unknown)", "(unknown)")
 
 
+def resolve_issue_brief(jira_client: JIRA, key: str) -> JiraRootIssue:
+    """Загружает краткую информацию по issue.
+
+    Используется для вывода «фактических» задач (ключей), найденных в коммитах MR.
+    """
+    try:
+        issue = jira_client.issue(key, fields="summary,issuetype")
+        fields = issue.fields
+        summary = (getattr(fields, "summary", "") or "").replace("\n", " ")
+        issuetype = getattr(getattr(fields, "issuetype", None), "name", "") or ""
+        return JiraRootIssue(key, summary, issuetype)
+    except JIRAError as e:
+        logging.warning("Jira error for %s: %s", key, e)
+        return JiraRootIssue(key, "(unknown)", "(unknown)")
+    except Exception as e:
+        logging.warning("Unexpected Jira error for %s: %s", key, e)
+        return JiraRootIssue(key, "(unknown)", "(unknown)")
+
+
 # ============================ Форматы вывода ====================================
 
 class OutputFormat(str):
@@ -864,6 +883,7 @@ def render_output(
     fmt: str,
     mr_url: str,
     project_name: str = "",
+    children_by_root: Optional[Dict[str, List[JiraRootIssue]]] = None,
 ) -> None:
     if fmt == OutputFormat.URLS:
         for i in sorted(issues, key=lambda x: x.key):
@@ -885,6 +905,12 @@ def render_output(
             print()
         print(f"- ({i.issuetype}) {i.summary}")
         print(f"  {i.as_url(jira_base)}")
+
+        if children_by_root:
+            children = children_by_root.get(i.key, [])
+            for c in sorted(children, key=lambda x: x.key):
+                print(f"  |__ {c.key}: ({c.issuetype}) {c.summary}")
+                print(f"  |   {c.as_url(jira_base)}")
 
 
 # ============================ Общая логика: извлечение issue из MR ===============
@@ -933,8 +959,15 @@ def extract_issues_from_mr_id(
     jira_project: Optional[str],
     insecure: bool,
     mr_url_for_log: str,
-) -> List[JiraRootIssue]:
-    """Извлекает корневые Jira-issue из коммитов MR по его IID."""
+) -> Tuple[List[JiraRootIssue], Dict[str, List[JiraRootIssue]], List[str], JIRA]:
+    """Извлекает Jira-issue из коммитов MR по его IID.
+
+    Возвращает:
+    - root_issues: уникальные «корневые» задачи
+    - children_by_root: root_key -> список «фактических» задач (ключей из коммитов)
+    - actual_keys: уникальные Jira-ключи, найденные в коммитах
+    - jira_client: подключение к Jira (переиспользуется в вызывающем коде)
+    """
     key_rx, ignore_rx = compile_regexps(jira_key_re, ignore_pattern)
 
     # Получаем коммиты MR
@@ -955,21 +988,6 @@ def extract_issues_from_mr_id(
 
     logging.info("Найдено коммитов в MR: %d", len(commits))
 
-    # Извлекаем Jira-ключи
-    found_keys = extract_jira_keys_from_commits(
-        commits=commits,
-        key_rx=key_rx,
-        ignore_rx=ignore_rx,
-        jira_project=jira_project
-    )
-
-    if not found_keys:
-        console.print("No Jira issues found in commits for MR:")
-        console.print(mr_url_for_log)
-        return []
-
-    logging.info("Уникальные Jira-ключи: %d", len(found_keys))
-
     # Jira: резолвим корневые задачи
     try:
         jira_client = build_jira_client(
@@ -983,13 +1001,26 @@ def extract_issues_from_mr_id(
         err_console.print(f"Не удалось подключиться к Jira: {e}")
         raise typer.Exit(code=4)
 
-    root_map: Dict[str, JiraRootIssue] = {}
-    for key in sorted(found_keys):
-        root = resolve_root_issue(jira_client, key)
-        if root.key not in root_map:
-            root_map[root.key] = root
+    root_cache: Dict[str, JiraRootIssue] = {}
+    issue_cache: Dict[str, JiraRootIssue] = {}
 
-    return list(root_map.values())
+    root_issues, children_by_root, actual_keys = extract_issue_tree_from_commits_cached(
+        commits=commits,
+        key_rx=key_rx,
+        ignore_rx=ignore_rx,
+        jira_client=jira_client,
+        jira_project=jira_project,
+        root_cache=root_cache,
+        issue_cache=issue_cache,
+    )
+
+    if not actual_keys:
+        console.print("No Jira issues found in commits for MR:")
+        console.print(mr_url_for_log)
+        return [], {}, [], jira_client
+
+    logging.info("Уникальные Jira-ключи: %d", len(actual_keys))
+    return root_issues, children_by_root, actual_keys, jira_client
 
 
 def extract_issues_from_mr(
@@ -1004,10 +1035,11 @@ def extract_issues_from_mr(
     ignore_pattern: List[str],
     jira_project: Optional[str],
     insecure: bool,
-) -> Tuple[str, str, List[JiraRootIssue], JIRA, Any]:
-    """Извлекает корневые Jira-issue из коммитов MR.
+) -> Tuple[str, str, List[JiraRootIssue], Dict[str, List[JiraRootIssue]], List[str], JIRA, Any]:
+    """Извлекает Jira-issue из коммитов MR.
 
-    Возвращает: (project_path, project_name, root_issues, jira_client, gl)
+    Возвращает:
+    (project_path, project_name, root_issues, children_by_root, actual_keys, jira_client, gl)
     """
     host, project_path, iid = parse_mr_url(mr_url)
     if not gitlab_token:
@@ -1023,7 +1055,7 @@ def extract_issues_from_mr(
         err_console.print(f"Не удалось аутентифицироваться в GitLab: {e}")
         raise typer.Exit(code=2)
 
-    root_issues = extract_issues_from_mr_id(
+    root_issues, children_by_root, actual_keys, jira_client = extract_issues_from_mr_id(
         gl=gl,
         project_path=project_path,
         iid=iid,
@@ -1038,20 +1070,11 @@ def extract_issues_from_mr(
         mr_url_for_log=mr_url,
     )
 
-    if not root_issues:
+    if not actual_keys:
         raise typer.Exit(code=0)
 
-    # Jira client (re-build for returning if needed, though extract_issues_from_mr_id builds it too)
-    jira_client = build_jira_client(
-        jira_base,
-        token=jira_token,
-        user=jira_user,
-        insecure=insecure,
-        user_agent=user_agent,
-    )
-
     project_name = project_path.rsplit("/", 1)[-1]
-    return project_path, project_name, root_issues, jira_client, gl
+    return project_path, project_name, root_issues, children_by_root, actual_keys, jira_client, gl
 
 
 # ============================ Команда: get mrs (batch) =========================
@@ -1108,6 +1131,49 @@ def extract_root_issues_from_commits_cached(
     jira_project: Optional[str],
     cache: Dict[str, JiraRootIssue],
 ) -> List[JiraRootIssue]:
+    roots, _children_by_root, _actual_keys = extract_issue_tree_from_commits_cached(
+        commits=commits,
+        key_rx=key_rx,
+        ignore_rx=ignore_rx,
+        jira_client=jira_client,
+        jira_project=jira_project,
+        root_cache=cache,
+        issue_cache={},
+    )
+    return roots
+
+
+def _resolve_issue_brief_cached(
+    jira_client: JIRA,
+    key: str,
+    cache: Dict[str, JiraRootIssue],
+) -> JiraRootIssue:
+    cached = cache.get(key)
+    if cached:
+        return cached
+    issue = resolve_issue_brief(jira_client, key)
+    cache[key] = issue
+    return issue
+
+
+def extract_issue_tree_from_commits_cached(
+    *,
+    commits: List[Dict[str, str]],
+    key_rx: re.Pattern[str],
+    ignore_rx: List[re.Pattern[str]],
+    jira_client: JIRA,
+    jira_project: Optional[str],
+    root_cache: Dict[str, JiraRootIssue],
+    issue_cache: Dict[str, JiraRootIssue],
+) -> Tuple[List[JiraRootIssue], Dict[str, List[JiraRootIssue]], List[str]]:
+    """Извлекает задачи из коммитов и группирует их по корневым issue.
+
+    Возвращает:
+    - roots: список уникальных корневых issue
+    - children_by_root: root_key -> список «фактических» issue (ключей из коммитов),
+      которые лежат под этим root (root не включается в children)
+    - actual_keys: уникальные Jira-ключи, найденные в коммитах (отсортированный список)
+    """
     found_keys = extract_jira_keys_from_commits(
         commits=commits,
         key_rx=key_rx,
@@ -1115,14 +1181,31 @@ def extract_root_issues_from_commits_cached(
         jira_project=jira_project,
     )
     if not found_keys:
-        return []
+        return [], {}, []
 
     root_map: Dict[str, JiraRootIssue] = {}
+    children_map: Dict[str, Dict[str, JiraRootIssue]] = {}
+
     for key in sorted(found_keys):
-        root = _resolve_root_issue_cached(jira_client, key, cache)
+        root = _resolve_root_issue_cached(jira_client, key, root_cache)
         root_map[root.key] = root
 
-    return list(root_map.values())
+        if key == root.key:
+            continue
+
+        issue = _resolve_issue_brief_cached(jira_client, key, issue_cache)
+        by_key = children_map.get(root.key)
+        if by_key is None:
+            by_key = {}
+            children_map[root.key] = by_key
+        by_key[issue.key] = issue
+
+    roots = sorted(root_map.values(), key=lambda x: x.key)
+    children_by_root: Dict[str, List[JiraRootIssue]] = {
+        rk: sorted(v.values(), key=lambda x: x.key) for rk, v in children_map.items()
+    }
+    actual_keys = sorted(found_keys)
+    return roots, children_by_root, actual_keys
 
 
 def _list_open_mrs_for_env(
@@ -1203,7 +1286,7 @@ def execute_create_release(
     gl: Any,
     project_path: str,
     project_name: str,
-    root_issues: List[JiraRootIssue],
+    issue_keys: Sequence[str],
     jira_client: JIRA,
     jira_base: str,
     jira_token: Optional[str],
@@ -1284,31 +1367,32 @@ def execute_create_release(
     print(f"  Описание: {description}")
     print()
 
-    # Привязываем issue к релизу (устанавливаем fixVersions) через прямые REST-вызовы
-    for issue in sorted(root_issues, key=lambda x: x.key):
+    # Привязываем issue к релизу (устанавливаем fixVersions) через прямые REST-вызовы.
+    # В релиз добавляем фактические issue, найденные в коммитах MR (а не их корневые задачи).
+    for key in sorted(set(issue_keys)):
         try:
-            jira_issue = jira_client.issue(issue.key, fields="fixVersions")
+            jira_issue = jira_client.issue(key, fields="fixVersions")
             existing = [v.name for v in jira_issue.fields.fixVersions] if jira_issue.fields.fixVersions else []
             if version_name not in existing:
                 existing.append(version_name)
                 _update_payload = {"fields": {"fixVersions": [{"name": n} for n in existing]}}
                 _resp = _requests.put(
-                    f"{jira_origin}/rest/api/2/issue/{issue.key}",
+                    f"{jira_origin}/rest/api/2/issue/{key}",
                     headers=mutating_headers,
                     json=_update_payload,
                     verify=not insecure,
                 )
                 _resp.raise_for_status()
-            print(f"- {issue.key}: fixVersion установлен → {version_name}")
+            print(f"- {key}: fixVersion установлен → {version_name}")
         except _requests.HTTPError as e:
-            err_console.print(f"Ошибка при обновлении {issue.key}: {e}")
+            err_console.print(f"Ошибка при обновлении {key}: {e}")
             if hasattr(e, 'response') and e.response is not None:
                 err_console.print(f"Response: {e.response.text}")
         except JIRAError as e:
-            err_console.print(f"Ошибка при обновлении {issue.key}: {e}")
+            err_console.print(f"Ошибка при обновлении {key}: {e}")
 
     print()
-    print(f"Готово. В релиз {version_name} включено {len(root_issues)} issue.")
+    print(f"Готово. В релиз {version_name} включено {len(set(issue_keys))} issue.")
 
 
 # ============================ Команда: get issues ===============================
@@ -1395,7 +1479,7 @@ def get_issues(
         except Exception:
             pass
 
-    project_path, project_name, root_issues, jira_client, gl = extract_issues_from_mr(
+    project_path, project_name, root_issues, children_by_root, _actual_keys, _jira_client, gl = extract_issues_from_mr(
         mr_url=mr_url,
         gitlab_token=gitlab_token,
         gitlab_url_override=gitlab_url_override,
@@ -1408,7 +1492,14 @@ def get_issues(
         jira_project=jira_project,
         insecure=insecure,
     )
-    render_output(root_issues, jira_base=jira_base, fmt=fmt.lower(), mr_url=mr_url, project_name=project_name)
+    render_output(
+        root_issues,
+        jira_base=jira_base,
+        fmt=fmt.lower(),
+        mr_url=mr_url,
+        project_name=project_name,
+        children_by_root=children_by_root,
+    )
 
 
 @get_app.command("mrs")
@@ -1754,7 +1845,7 @@ def create_release(
         except Exception:
             pass
 
-    project_path, project_name, root_issues, jira_client, gl = extract_issues_from_mr(
+    project_path, project_name, root_issues, children_by_root, actual_keys, jira_client, gl = extract_issues_from_mr(
         mr_url=mr_url,
         gitlab_token=gitlab_token,
         gitlab_url_override=gitlab_url_override,
@@ -1772,7 +1863,7 @@ def create_release(
         gl=gl,
         project_path=project_path,
         project_name=project_name,
-        root_issues=root_issues,
+        issue_keys=actual_keys,
         jira_client=jira_client,
         jira_base=jira_base,
         jira_token=jira_token,
@@ -2185,8 +2276,11 @@ def _execute_create_mr(
 
     jira_client_for_dry_run: Optional[JIRA] = None
     root_cache: Dict[str, JiraRootIssue] = {}
+    issue_cache: Dict[str, JiraRootIssue] = {}
 
-    def _extract_root_issues_for_dry_run(commits: List[Dict[str, str]]) -> List[JiraRootIssue]:
+    def _extract_issue_tree_for_dry_run(
+        commits: List[Dict[str, str]],
+    ) -> Tuple[List[JiraRootIssue], Dict[str, List[JiraRootIssue]], List[str]]:
         nonlocal jira_client_for_dry_run
         if jira_client_for_dry_run is None:
             try:
@@ -2201,13 +2295,14 @@ def _execute_create_mr(
                 err_console.print(f"Не удалось подключиться к Jira: {e}")
                 raise typer.Exit(code=4)
 
-        return extract_root_issues_from_commits_cached(
+        return extract_issue_tree_from_commits_cached(
             commits=commits,
             key_rx=key_rx,
             ignore_rx=ignore_rx,
             jira_client=jira_client_for_dry_run,
             jira_project=jira_project,
-            cache=root_cache,
+            root_cache=root_cache,
+            issue_cache=issue_cache,
         )
 
     if mrs:
@@ -2239,7 +2334,7 @@ def _execute_create_mr(
             except Exception as e:
                 logging.debug("DRY-RUN: не удалось получить commits существующего MR %s: %s", mr.web_url, e)
 
-            root_issues = _extract_root_issues_for_dry_run(mr_commits)
+            root_issues, children_by_root, _actual_keys = _extract_issue_tree_for_dry_run(mr_commits)
             project_title = f"{project_name} (dry-run, существующий MR)"
             if root_issues:
                 render_output(
@@ -2248,6 +2343,7 @@ def _execute_create_mr(
                     fmt=OutputFormat.MD,
                     mr_url=mr.web_url,
                     project_name=project_title,
+                    children_by_root=children_by_root,
                 )
             else:
                 print(project_title)
@@ -2273,7 +2369,7 @@ def _execute_create_mr(
         console.print(
             f"[cyan]DRY-RUN:[/cyan] будет создан MR '{mr_title}': {actual_source_branch} → {target_branch}"
         )
-        root_issues = _extract_root_issues_for_dry_run(compare_commits)
+        root_issues, children_by_root, _actual_keys = _extract_issue_tree_for_dry_run(compare_commits)
         dry_run_ref = f"[dry-run] {actual_source_branch} -> {target_branch}"
         project_title = f"{project_name} (dry-run)"
 
@@ -2284,6 +2380,7 @@ def _execute_create_mr(
                 fmt=OutputFormat.MD,
                 mr_url=dry_run_ref,
                 project_name=project_title,
+                children_by_root=children_by_root,
             )
         else:
             print(project_title)
@@ -2318,7 +2415,7 @@ def _execute_create_mr(
         raise typer.Exit(code=7)
 
     # Теперь извлекаем issues
-    root_issues = extract_issues_from_mr_id(
+    root_issues, children_by_root, actual_keys, jira_client = extract_issues_from_mr_id(
         gl=gl,
         project_path=project_path,
         iid=str(mr.iid),
@@ -2338,24 +2435,11 @@ def _execute_create_mr(
             err_console.print("Ошибка: параметр --jira-project обязателен при использовании --with-release")
             raise typer.Exit(code=1)
 
-        # Нам нужен jira_client
-        try:
-            jira_client = build_jira_client(
-                jira_base,
-                token=jira_token,
-                user=jira_user,
-                insecure=insecure,
-                user_agent=user_agent,
-            )
-        except Exception as e:
-            err_console.print(f"Не удалось подключиться к Jira: {e}")
-            raise typer.Exit(code=4)
-
         execute_create_release(
             gl=gl,
             project_path=project_path,
             project_name=project_name,
-            root_issues=root_issues,
+            issue_keys=actual_keys,
             jira_client=jira_client,
             jira_base=jira_base,
             jira_token=jira_token,
@@ -2367,7 +2451,14 @@ def _execute_create_mr(
         )
         print()  # Пустая строка перед списком issue
 
-    render_output(root_issues, jira_base=jira_base, fmt=OutputFormat.MD, mr_url=mr.web_url, project_name=project_name)
+    render_output(
+        root_issues,
+        jira_base=jira_base,
+        fmt=OutputFormat.MD,
+        mr_url=mr.web_url,
+        project_name=project_name,
+        children_by_root=children_by_root,
+    )
 
     return MrResult(
         project_id=project_name,
