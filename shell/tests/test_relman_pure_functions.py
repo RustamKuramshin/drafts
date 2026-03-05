@@ -72,6 +72,7 @@ class RelmanPureFunctionsTest(unittest.TestCase):
         children_by_root = {
             "MMBT-1": [
                 relman.JiraRootIssue("MMBT-2", "Child summary", "Task"),
+                relman.JiraRootIssue("MMBT-3", "Second child summary", "Bug"),
             ]
         }
 
@@ -88,9 +89,22 @@ class RelmanPureFunctionsTest(unittest.TestCase):
 
         out = buf.getvalue()
         self.assertIn("|__ MMBT-2:", out)
+        self.assertIn("|__ MMBT-3:", out)
         self.assertIn("https://jira.example.com/browse/MMBT-2", out)
         self.assertIn("\n      https://jira.example.com/browse/MMBT-2\n", out)
         self.assertNotIn("\n  |   https://jira.example.com/browse/MMBT-2\n", out)
+
+        # Между корневой задачей и дочерними должна быть соединительная "|"-линия,
+        # чтобы ветка не выглядела «обрезанной» перед "|__".
+        self.assertIn(
+            "\n  https://jira.example.com/browse/MMBT-1\n  |\n  |__ MMBT-2:",
+            out,
+        )
+        # Между дочерними задачами также должна быть соединительная "|"-линия.
+        self.assertIn(
+            "\n      https://jira.example.com/browse/MMBT-2\n  |\n  |__ MMBT-3:",
+            out,
+        )
 
 
 if __name__ == "__main__":

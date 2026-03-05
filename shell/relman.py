@@ -908,7 +908,16 @@ def render_output(
 
         if children_by_root:
             children = children_by_root.get(i.key, [])
-            for c in sorted(children, key=lambda x: x.key):
+            if children:
+                # Для читаемости отделяем корневую issue от дочерних.
+                # При этом печатаем соединительную "|"-линию, чтобы ветка визуально
+                # не «обрывалась» перед первым "|__" (аналогично тому, как делает `tree`).
+                print("  |")
+            for c_idx, c in enumerate(sorted(children, key=lambda x: x.key)):
+                if c_idx > 0:
+                    # Между дочерними задачами рисуем соединительную "|"-линию,
+                    # чтобы сохранялась непрерывность "ствола".
+                    print("  |")
                 print(f"  |__ {c.key}: ({c.issuetype}) {c.summary}")
                 # URL — это продолжение строки-узла, поэтому не рисуем дополнительную "|"
                 # под "|__", чтобы вывод выглядел ближе к привычному `tree`.
