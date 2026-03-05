@@ -118,6 +118,8 @@ def _build_examples_epilog() -> str:
         "",
         "[bold]Batch-обработка создания MR для всех проектов из конфига[/bold]",
         "[dim]$[/dim] relman.py create mr --batch --target prod",
+        "[dim]$[/dim] relman.py create mr --batch --target prod --only-projects mm-core-bff,api-graphql,mm-geo-service",
+        "[dim]$[/dim] relman.py create mr --batch --target prod --only-projects mm-geo-service",
         "",
         "[bold]Dry-run для создания MR (без фактического создания MR)[/bold]",
         "[dim]$[/dim] relman.py create mr https://gitlab.platform.corp/magnitonline/mm/backend/api-graphql --from development --to stage --dry-run",
@@ -297,6 +299,45 @@ def select_projects_for_batch(cfg: Dict[str, Any], selector: Optional[str]) -> L
     allow_repo_url = _is_http_url(selector)
     proj = _unique_project_match(cfg=cfg, selector=selector, allow_match_by_repo_url=allow_repo_url)
     return [proj]
+
+
+def parse_only_projects_csv(value: str) -> List[str]:
+    """Парсит значение --only-projects.
+
+    Ожидается один аргумент со списком проектов через запятую: "a,b,c".
+    Пробелы вокруг элементов допускаются.
+    """
+    items = [p.strip() for p in (value or "").split(",")]
+    items = [p for p in items if p]
+    if not items:
+        raise ValueError("Параметр --only-projects задан, но список проектов пуст")
+    return items
+
+
+def filter_projects_by_only_projects(
+    projects: List[Dict[str, Any]],
+    only_projects: Sequence[str],
+) -> List[Dict[str, Any]]:
+    """Фильтрует список проектов по name/id из config.yaml.
+
+    Валидирует, что все значения из only_projects существуют среди name/id
+    переданного списка projects (иначе кидает ValueError).
+    """
+    wanted = {p.strip() for p in only_projects if p and p.strip()}
+    if not wanted:
+        raise ValueError("Параметр --only-projects задан, но список проектов пуст")
+
+    known_names = {n for n in (p.get("name") for p in projects) if isinstance(n, str) and n}
+    known_ids = {i for i in (p.get("id") for p in projects) if isinstance(i, str) and i}
+    known = known_names | known_ids
+
+    unknown = sorted({p for p in wanted if p not in known})
+    if unknown:
+        hint = f" Доступные проекты: {', '.join(sorted(known_names))}" if known_names else ""
+        raise ValueError(f"Неизвестные проекты в --only-projects: {', '.join(unknown)}.{hint}")
+
+    wanted_set = set(wanted)
+    return [p for p in projects if (p.get("name") in wanted_set) or (p.get("id") in wanted_set)]
 
 @app.callback(invoke_without_command=True)
 def app_callback(
@@ -1154,7 +1195,7 @@ def execute_create_release(
 
     version_name = f"{project_name}:{tag}"
     start_date = date.today().isoformat()
-    description = "Создан автоматически"
+    description = "[relman]: Создан автоматически"
 
     # Создаём релиз (версию) в Jira через прямой REST-вызов
     logging.info("Создаём релиз в Jira: %s (проект: %s)", version_name, jira_project)
@@ -1514,9 +1555,7 @@ def get_mrs(
             continue
 
         if not skip_ci:
-            console.print(f"\n[bold]{'=' * 60}[/bold]")
-            console.print(f"[bold]📦 Проект: {proj_id}[/bold]  ({env_from} → {env_to})")
-            console.print(f"[bold]{'=' * 60}[/bold]")
+            console.print(f"[bold]Проект: {proj_id}[/bold]  ({env_from} → {env_to})")
 
         printed_project_header = False
 
@@ -1542,9 +1581,7 @@ def get_mrs(
                 continue
 
             if skip_ci and not printed_project_header:
-                console.print(f"\n[bold]{'=' * 60}[/bold]")
-                console.print(f"[bold]📦 Проект: {proj_id}[/bold]  ({env_from} → {env_to})")
-                console.print(f"[bold]{'=' * 60}[/bold]")
+                console.print(f"[bold]Проект: {proj_id}[/bold]  ({env_from} → {env_to})")
                 printed_project_header = True
 
             root_issues = extract_root_issues_from_commits_cached(
@@ -1729,6 +1766,14 @@ def create_mr(
     # Batch-режим
     batch: bool = typer.Option(False, "--batch", help="Batch-режим: перебрать все проекты из config.yaml"),
     target: Optional[str] = typer.Option(None, "--target", help="Имя target из config.yaml (например stage, prod). Используется в batch-режиме для выбора пар веток."),
+    only_projects: Optional[str] = typer.Option(
+        None,
+        "--only-projects",
+        help=(
+            "Ограничить batch-обработку указанными проектами из config.yaml (name/id). "
+            "Формат: CSV (a,b,c). Передавайте одним аргументом (без пробелов или в кавычках)."
+        ),
+    ),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
@@ -1813,6 +1858,9 @@ def create_mr(
         except Exception:
             pass
 
+    if only_projects and not batch:
+        raise typer.BadParameter("Параметр --only-projects доступен только в batch-режиме (--batch)")
+
     if batch:
         # Batch-режим: перебираем проекты из config.yaml
         if not target:
@@ -1822,6 +1870,15 @@ def create_mr(
             projects = select_projects_for_batch(cfg, repo_url)
         except ValueError as e:
             raise typer.BadParameter(str(e))
+
+        if only_projects:
+            try:
+                only_list = parse_only_projects_csv(only_projects)
+                projects = filter_projects_by_only_projects(projects, only_list)
+            except ValueError as e:
+                raise typer.BadParameter(str(e))
+            if not projects:
+                raise typer.BadParameter("После применения --only-projects не осталось проектов для обработки")
         if not projects:
             err_console.print("В config.yaml не определены проекты (projects).")
             raise typer.Exit(code=1)
@@ -1850,9 +1907,7 @@ def create_mr(
                 err_console.print(f"Проект {proj_id}: target '{target}' не содержит from/to, пропускаем.")
                 continue
 
-            console.print(f"\n[bold]{'=' * 60}[/bold]")
-            console.print(f"[bold]📦 Проект: {proj_id}[/bold]  ({proj_from} → {proj_to})")
-            console.print(f"[bold]{'=' * 60}[/bold]")
+            console.print(f"[bold]Проект: {proj_id}[/bold]  ({proj_from} → {proj_to})")
 
             try:
                 result = _execute_create_mr(

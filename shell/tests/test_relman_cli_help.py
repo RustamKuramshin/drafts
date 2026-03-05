@@ -64,6 +64,13 @@ class RelmanCliHelpTest(unittest.TestCase):
         # реальной ценности. Этот smoke-тест гарантирует, что CLI стартует и
         # выводит справку без падений.
 
+    def test_create_mr_help_contains_only_projects(self) -> None:
+        proc = self._run_relman(["create", "mr", "--help"])
+        self.assertEqual(proc.returncode, 0, msg=_debug_proc(proc))
+
+        out = _strip_ansi(proc.stdout)
+        self.assertIn("--only-projects", out)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
