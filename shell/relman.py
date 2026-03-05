@@ -746,10 +746,15 @@ def parse_semver(tag: str) -> Optional[Tuple[int, int, int]]:
     return int(m.group(1)), int(m.group(2)), int(m.group(3))
 
 
-def compute_next_tag(tags: List[str]) -> str:
-    """Вычисляет следующий тэг по semver (инкремент minor-версии).
+def compute_next_tag_minor(tags: List[str]) -> str:
+    """Старая реализация вычисления следующего тэга (инкремент minor).
 
-    Из списка тэгов выбирается максимальный по semver, затем увеличивается minor и patch сбрасывается в 0.
+    Важно: это прежнее поведение `compute_next_tag()`. Оно сохранено в коде намеренно,
+    чтобы можно было быстро вернуться к minor-инкременту, если это потребуется.
+
+    Алгоритм:
+    - из списка тэгов выбирается максимальный по semver;
+    - затем увеличивается minor и patch сбрасывается в 0.
     """
     semver_tags: List[Tuple[int, int, int]] = []
     for t in tags:
@@ -761,6 +766,34 @@ def compute_next_tag(tags: List[str]) -> str:
     semver_tags.sort()
     latest = semver_tags[-1]
     next_ver = (latest[0], latest[1] + 1, 0)
+    return f"{next_ver[0]}.{next_ver[1]}.{next_ver[2]}"
+
+
+def compute_next_tag(tags: List[str]) -> str:
+    """Вычисляет следующий tэг по semver (временно: инкремент patch-версии).
+
+    Почему так:
+    - relman умеет создавать Jira release без явного `--gitlab-tag` и тогда сам вычисляет следующий тэг
+      на основе существующих GitLab tags;
+    - ранее использовался инкремент minor (см. `compute_next_tag_minor()`), но это временно
+      расходится с тем, как текущий CI-пайплайн в GitLab создаёт новые тэги при релизах.
+
+    Текущая временная стратегия:
+    - из списка тэгов выбирается максимальный по semver;
+    - затем увеличивается patch (major/minor остаются без изменений).
+
+    Примечание: если тэг задан явно через `--gitlab-tag`, эта функция не используется.
+    """
+    semver_tags: List[Tuple[int, int, int]] = []
+    for t in tags:
+        sv = parse_semver(t)
+        if sv:
+            semver_tags.append(sv)
+    if not semver_tags:
+        raise typer.BadParameter("Не найдено semver-тэгов в проекте GitLab. Укажите тэг явно через --gitlab-tag.")
+    semver_tags.sort()
+    latest = semver_tags[-1]
+    next_ver = (latest[0], latest[1], latest[2] + 1)
     return f"{next_ver[0]}.{next_ver[1]}.{next_ver[2]}"
 
 

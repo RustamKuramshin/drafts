@@ -31,7 +31,7 @@ class RelmanPureFunctionsTest(unittest.TestCase):
         self.assertEqual(project_path, "a/b")
 
     def test_compute_next_tag(self) -> None:
-        self.assertEqual(relman.compute_next_tag(["0.1.0", "0.2.3", "v0.10.0"]), "0.11.0")
+        self.assertEqual(relman.compute_next_tag(["0.1.0", "0.2.3", "v0.10.0"]), "0.10.1")
 
     def test_compile_regexps_and_extract_keys(self) -> None:
         key_rx, ignore_rx = relman.compile_regexps(r"MMBT-\d+", [r"^Merge branch"])
