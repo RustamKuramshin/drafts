@@ -91,8 +91,12 @@ class RelmanPureFunctionsTest(unittest.TestCase):
         self.assertIn("|__ MMBT-2:", out)
         self.assertIn("|__ MMBT-3:", out)
         self.assertIn("https://jira.example.com/browse/MMBT-2", out)
-        self.assertIn("\n      https://jira.example.com/browse/MMBT-2\n", out)
-        self.assertNotIn("\n  |   https://jira.example.com/browse/MMBT-2\n", out)
+        # Для НЕ-последнего child-issue URL должен сохранять вертикальную линию "ствола",
+        # иначе дерево выглядит «разорванным».
+        self.assertIn("\n  |   https://jira.example.com/browse/MMBT-2\n", out)
+        # Для последнего child-issue оставляем только пробельный отступ (как в `tree`).
+        self.assertIn("\n      https://jira.example.com/browse/MMBT-3\n", out)
+        self.assertNotIn("\n  |   https://jira.example.com/browse/MMBT-3\n", out)
 
         # Между корневой задачей и дочерними должна быть соединительная "|"-линия,
         # чтобы ветка не выглядела «обрезанной» перед "|__".
@@ -102,7 +106,7 @@ class RelmanPureFunctionsTest(unittest.TestCase):
         )
         # Между дочерними задачами также должна быть соединительная "|"-линия.
         self.assertIn(
-            "\n      https://jira.example.com/browse/MMBT-2\n  |\n  |__ MMBT-3:",
+            "\n  |   https://jira.example.com/browse/MMBT-2\n  |\n  |__ MMBT-3:",
             out,
         )
 

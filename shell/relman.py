@@ -913,15 +913,19 @@ def render_output(
                 # При этом печатаем соединительную "|"-линию, чтобы ветка визуально
                 # не «обрывалась» перед первым "|__" (аналогично тому, как делает `tree`).
                 print("  |")
-            for c_idx, c in enumerate(sorted(children, key=lambda x: x.key)):
+            sorted_children = sorted(children, key=lambda x: x.key)
+            for c_idx, c in enumerate(sorted_children):
                 if c_idx > 0:
                     # Между дочерними задачами рисуем соединительную "|"-линию,
                     # чтобы сохранялась непрерывность "ствола".
                     print("  |")
                 print(f"  |__ {c.key}: ({c.issuetype}) {c.summary}")
-                # URL — это продолжение строки-узла, поэтому не рисуем дополнительную "|"
-                # под "|__", чтобы вывод выглядел ближе к привычному `tree`.
-                print(f"      {c.as_url(jira_base)}")
+                # URL — это продолжение строки-узла. Если у root-issue несколько children,
+                # то для всех, кроме последнего, нужно сохранять вертикальную линию "ствола",
+                # иначе визуально возникает «разрыв» (пример: между дочерними задачами).
+                is_last_child = c_idx == (len(sorted_children) - 1)
+                url_prefix = "      " if is_last_child else "  |   "
+                print(f"{url_prefix}{c.as_url(jira_base)}")
 
 
 # ============================ Общая логика: извлечение issue из MR ===============
