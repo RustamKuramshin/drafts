@@ -28,22 +28,22 @@ pipeline {
         string(
                 name: 'BITBUCKET_REPO_URL',
                 description: 'Репо bitbucket',
-                defaultValue: 'https://stash.delta.sbrf.ru'
+                defaultValue: 'https://domain.com'
         )
         string(
                 name: 'NEXUS_URL',
                 description: 'Nexus URL',
-                defaultValue: 'http://sbtnexus.delta.sbrf.ru:8081/nexus'
+                defaultValue: 'http://domain.com:8081/nexus'
         )
         string(
                 name: 'JENKINS_URL',
                 description: 'Jenkis URL ',
-                defaultValue: 'https://sbt-jenkins.delta.sbrf.ru/jenkins'
+                defaultValue: 'https://domain.com/jenkins'
         )
         string(
                 name: 'DRAFT_REPO_SSH_URL',
                 description: 'Draft repo ssh URL',
-                defaultValue: 'ssh://git@stash.delta.sbrf.ru:7999/pt/payment-document-drafts.git'
+                defaultValue: 'ssh://git@domain.com:7999/pt/payment-document-drafts.git'
         )
         string(
                 name: 'RELEASE_BRANCH_ALPHA',
@@ -53,7 +53,7 @@ pipeline {
         string(
                 name: 'DRAFT_REPO_GIT_URL',
                 description: 'Draft repo git URL',
-                defaultValue: 'https://stash.delta.sbrf.ru/scm/pt/payment-document-drafts.git'
+                defaultValue: 'https://domain.com/scm/pt/payment-document-drafts.git'
         )
         string(
                 name: 'JIRA_ISSUE',
@@ -73,7 +73,7 @@ pipeline {
         string(
                 name: 'JIRA_URL',
                 description: 'Jira URL',
-                defaultValue: 'https://jira.delta.sbrf.ru'
+                defaultValue: 'https://domain.com'
         )
     }
     options {

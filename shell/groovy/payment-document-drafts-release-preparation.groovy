@@ -614,7 +614,7 @@ def scriptMain() {
                         "needsSAST"                 : "true",
                         "needsSonar"                : "true",
                         "disableJiraInteraction"    : "true",
-                        "dockerRegistryURL"         : "registry.delta.sbrf.ru",
+                        "dockerRegistryURL"         : "domain.com",
                         "needsCustomMavenSettingXml": "true",
                         "additionalSonarProps"      : "-DskipTests=true",
                         "additionalBuildProps"      : "-DskipTests=true"
