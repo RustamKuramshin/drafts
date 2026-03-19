@@ -16,10 +16,6 @@ suspend fun main(): Unit = coroutineScope {
         println("Диспетчер Dispatchers.Default     : Я работаю в потоке ${Thread.currentThread().name}")
     }
 
-    launch(newSingleThreadContext("other-thread")) { // will get its own new thread
-        println("Выполнение на отдельном потоке    : Я работаю в потоке ${Thread.currentThread().name}")
-    }
-
     withContext(Dispatchers.IO) {
         Thread.sleep(3000)
         println("Выполнение на thread pool для IO : Я работаю в потоке ${Thread.currentThread().name}")
