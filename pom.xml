@@ -11,7 +11,7 @@
 
     <modules>
         <module>java-only</module>
-        <module>spring</module>
+        <module>spring-java</module>
         <module>algo</module>
         <module>kotlin-only</module>
     </modules>

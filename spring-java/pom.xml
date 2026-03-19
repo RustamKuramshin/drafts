@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>ru.kuramshindev</groupId>
-    <artifactId>spring</artifactId>
+    <artifactId>spring-java</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>spring</name>
     <description>spring</description>

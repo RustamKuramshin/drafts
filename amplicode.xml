@@ -2,7 +2,7 @@
 <project version="4">
   <component name="AmplicodePersistenceUnitSettings">
     <persistence-units>
-      <persistence-unit moduleName="spring" name="Default">
+      <persistence-unit moduleName="spring-java" name="Default">
         <packages>
           <package value="ru.kuramshindev.spring" />
         </packages>
