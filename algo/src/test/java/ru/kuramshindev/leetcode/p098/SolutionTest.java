@@ -1,7 +1,7 @@
 package ru.kuramshindev.leetcode.p098;
 
 import ru.kuramshindev.leetcode.treenode.p098.Solution;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
 import static ru.kuramshindev.leetcode.LeetCodeUtils.TreeNode;

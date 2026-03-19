@@ -1,7 +1,7 @@
 package ru.kuramshindev.leetcode.p641;
 
 import ru.kuramshindev.leetcode.node.p641.MyCircularDeque;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
 import java.util.List;

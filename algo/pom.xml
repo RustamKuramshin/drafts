@@ -15,7 +15,6 @@
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <junit4.version>4.13.2</junit4.version>
         <junit.jupiter.version>6.0.3</junit.jupiter.version>
         <assertj.version>3.27.7</assertj.version>
         <maven.surefire.plugin.version>3.5.4</maven.surefire.plugin.version>
@@ -23,12 +22,6 @@
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${junit4.version}</version>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

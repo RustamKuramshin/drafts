@@ -2,7 +2,7 @@ package ru.kuramshindev.leetcode.p146;
 
 import ru.kuramshindev.leetcode.LeetCodeUtils;
 import ru.kuramshindev.leetcode.node.p146.LRUCache;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
 @DisplayName("Тестирование LFU-кэша")

@@ -1,7 +1,7 @@
 package ru.kuramshindev.leetcode.p460;
 
 import ru.kuramshindev.leetcode.node.p460.LFUCache;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
 import static ru.kuramshindev.leetcode.LeetCodeUtils.CacheTestCasePlayer;
