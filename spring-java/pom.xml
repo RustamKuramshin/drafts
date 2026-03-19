@@ -11,21 +11,9 @@
     <groupId>ru.kuramshindev</groupId>
     <artifactId>spring-java</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>spring</name>
-    <description>spring</description>
-    <url/>
-    <licenses>
-        <license/>
-    </licenses>
-    <developers>
-        <developer/>
-    </developers>
-    <scm>
-        <connection/>
-        <developerConnection/>
-        <tag/>
-        <url/>
-    </scm>
+    <name>spring-java</name>
+    <description>spring-java</description>
+
     <properties>
         <java.version>25</java.version>
     </properties>
