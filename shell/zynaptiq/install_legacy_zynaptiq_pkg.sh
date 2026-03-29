@@ -1,11 +1,11 @@
 #!/bin/sh
 
 # install_legacy_zynaptiq_pkg.sh
-# Установка старых несовместимых Zynaptiq pkg на современную macOS
-# Подходит для пакетов со структурой наподобие:
+# Installs legacy incompatible Zynaptiq pkg packages on modern macOS
+# Suitable for packages with a structure similar to:
 #   Contents/Archive.pax.gz
-#   Contents/preflight или Contents/Resources/preflight
-#   Contents/postflight или Contents/Resources/postflight
+#   Contents/preflight or Contents/Resources/preflight
+#   Contents/postflight or Contents/Resources/postflight
 
 set -u
 
@@ -38,21 +38,21 @@ cleanup() {
 }
 
 on_interrupt() {
-    fail "Прервано пользователем."
+    fail "Interrupted by user."
 }
 
 trap on_interrupt INT TERM
 
 need_cmd() {
-    command -v "$1" >/dev/null 2>&1 || fail "Не найдена команда: $1"
+    command -v "$1" >/dev/null 2>&1 || fail "Required command not found: $1"
 }
 
 run() {
     log "RUN: $*"
     "$@" 2>&1 | tee -a "$LOG_FILE"
     status=${PIPESTATUS:-}
-    # Для /bin/sh PIPESTATUS нет, поэтому проверяем код через subshell нельзя.
-    # В данном виде код возврата берётся у tee, так что используем другой подход ниже.
+    # /bin/sh does not provide PIPESTATUS, so the exit code cannot be checked via a subshell.
+    # In this form, tee's exit code would be used, so a different approach is used below.
 }
 
 run_checked() {
@@ -60,7 +60,7 @@ run_checked() {
     "$@" >>"$LOG_FILE" 2>&1
     status=$?
     if [ "$status" -ne 0 ]; then
-        fail "Команда завершилась с ошибкой ($status): $*"
+        fail "Command failed ($status): $*"
     fi
 }
 
@@ -69,7 +69,7 @@ run_sudo_checked() {
     sudo "$@" >>"$LOG_FILE" 2>&1
     status=$?
     if [ "$status" -ne 0 ]; then
-        fail "Команда через sudo завершилась с ошибкой ($status): $*"
+        fail "sudo command failed ($status): $*"
     fi
 }
 
@@ -78,26 +78,26 @@ run_sudo_warn() {
     sudo "$@" >>"$LOG_FILE" 2>&1
     status=$?
     if [ "$status" -ne 0 ]; then
-        log "WARNING: команда через sudo завершилась с ошибкой ($status): $*"
+        log "WARNING: sudo command failed ($status): $*"
     fi
     return 0
 }
 
 usage() {
     cat <<EOF
-Использование:
-  sh $SCRIPT_NAME "/путь/к/файлу.pkg"
+Usage:
+  sh $SCRIPT_NAME "/path/to/file.pkg"
 
-Что делает:
-  1) Находит payload внутри pkg
-  2) Запускает preflight (если есть)
-  3) Распаковывает Archive.pax.gz
-  4) Копирует Applications/* -> /Applications
-  5) Копирует Library/* -> /Library
-  6) Делает chmod/xattr только для скопированных объектов
-  7) Запускает postflight (если есть)
+What it does:
+  1) Locates the payload inside the pkg
+  2) Runs preflight (if present)
+  3) Extracts Archive.pax.gz
+  4) Copies Applications/* -> /Applications
+  5) Copies Library/* -> /Library
+  6) Applies chmod/xattr only to copied items
+  7) Runs postflight (if present)
 
-Лог:
+Log:
   $LOG_FILE
 EOF
 }
@@ -139,12 +139,12 @@ copy_tree_contents() {
         base_name="$(basename "$src_item")"
         dst_item="$dst_root/$base_name"
 
-        log "Копирование: $src_item -> $dst_item"
+        log "Copying: $src_item -> $dst_item"
         run_sudo_checked mkdir -p "$dst_root"
         run_sudo_checked ditto "$src_item" "$dst_item"
 
-        # В список для chmod/xattr пишем НЕ широкий корень,
-        # а только конечные объекты пакета.
+        # For the chmod/xattr list, record not the broad root,
+        # but only the final package objects.
         if [ -d "$src_item" ]; then
             find "$src_item" \
                 \( -name "*.app" -o -name "*.component" -o -name "*.vst" -o -name "*.vst3" -o -name "*.dpm" -o -name "*.aaxplugin" \) \
@@ -153,7 +153,7 @@ copy_tree_contents() {
                     printf '%s/%s\n' "$dst_root" "$rel" >> "$list_file"
                 done
         elif [ -f "$src_item" ]; then
-            # Для одиночных файлов верхнего уровня, например pdf/manual
+            # For top-level standalone files, such as a PDF/manual
             printf '%s\n' "$dst_item" >> "$list_file"
         fi
     done
@@ -181,7 +181,7 @@ apply_unquarantine_list() {
     sort -u "$list_file" | while IFS= read -r p; do
         [ -n "$p" ] || continue
         if [ -e "$p" ]; then
-            log "Удаление quarantine: $p"
+            log "Removing quarantine: $p"
             run_sudo_warn xattr -dr com.apple.quarantine "$p"
         fi
     done
@@ -212,45 +212,45 @@ main() {
         PKG_INPUT="$(cd "$PKG_DIRNAME" && pwd)/$PKG_BASENAME"
     fi
     
-    log "==== Старт установки ===="
-    log "Входной pkg: $PKG_INPUT"
-    log "Лог: $LOG_FILE"
-    
-    [ -e "$PKG_INPUT" ] || fail "Указанный pkg не существует: $PKG_INPUT"
-    
-    WORKDIR="$(mktemp -d "/tmp/zynaptiq_pkg_install.XXXXXX")" || fail "Не удалось создать временную папку"
+    log "==== Installation started ===="
+    log "Input pkg: $PKG_INPUT"
+    log "Log: $LOG_FILE"
+
+    [ -e "$PKG_INPUT" ] || fail "The specified pkg does not exist: $PKG_INPUT"
+
+    WORKDIR="$(mktemp -d "/tmp/zynaptiq_pkg_install.XXXXXX")" || fail "Failed to create a temporary directory"
     EXPANDED_ROOT="$WORKDIR/expanded"
     EXTRACTED_DIR="$WORKDIR/extracted"
-    mkdir -p "$EXPANDED_ROOT" "$EXTRACTED_DIR" || fail "Не удалось подготовить временные каталоги"
+    mkdir -p "$EXPANDED_ROOT" "$EXTRACTED_DIR" || fail "Failed to prepare temporary directories"
     
     APPS_LIST="$WORKDIR/installed_apps.txt"
     LIB_LIST="$WORKDIR/installed_lib.txt"
     : > "$APPS_LIST"
     : > "$LIB_LIST"
     
-    # 1) Определяем тип pkg
+    # 1) Determine the pkg type
     if [ -d "$PKG_INPUT" ]; then
-        log "Пакет выглядит как bundle pkg (директория)."
+        log "The package appears to be a bundle pkg (directory)."
         PKG_ROOT="$PKG_INPUT"
     else
-        log "Пакет выглядит как flat pkg (файл). Выполняю pkgutil --expand-full..."
+        log "The package appears to be a flat pkg (file). Running pkgutil --expand-full..."
         need_cmd pkgutil
         run_checked pkgutil --expand-full "$PKG_INPUT" "$EXPANDED_ROOT"
         PKG_ROOT="$EXPANDED_ROOT"
     fi
-    
-    # 2) Находим Archive.pax.gz
+
+    # 2) Locate Archive.pax.gz
     ARCHIVE_FILE="$(find "$PKG_ROOT" -type f -name "Archive.pax.gz" -print -quit 2>/dev/null)"
-    [ -n "$ARCHIVE_FILE" ] || fail "Не найден Archive.pax.gz внутри пакета"
-    
+    [ -n "$ARCHIVE_FILE" ] || fail "Archive.pax.gz was not found inside the package"
+
     ARCHIVE_FILE="$(cd "$(dirname "$ARCHIVE_FILE")" && pwd)/$(basename "$ARCHIVE_FILE")"
-    [ -n "$ARCHIVE_FILE" ] || fail "Не найден Archive.pax.gz внутри пакета"
+    [ -n "$ARCHIVE_FILE" ] || fail "Archive.pax.gz was not found inside the package"
     
     PAYLOAD_DIR="$(dirname "$ARCHIVE_FILE")"
     PAYLOAD_BASE="$PAYLOAD_DIR"
     
-    log "Найден Archive.pax.gz: $ARCHIVE_FILE"
-    log "Найден payload: $PAYLOAD_BASE"
+    log "Found Archive.pax.gz: $ARCHIVE_FILE"
+    log "Found payload: $PAYLOAD_BASE"
     
     PREFLIGHT="$(find_script_path "$PKG_ROOT" "preflight")"
     POSTFLIGHT="$(find_script_path "$PKG_ROOT" "postflight")"
@@ -264,8 +264,8 @@ main() {
     fi
     
     if [ -n "${PREFLIGHT:-}" ] && [ -f "$PREFLIGHT" ]; then
-        log "Найден preflight: $PREFLIGHT"
-        log "Запускаю preflight до установки..."
+        log "Found preflight: $PREFLIGHT"
+        log "Running preflight before installation..."
         (
             cd "$(dirname "$PREFLIGHT")" || exit 1
             sudo sh "$PREFLIGHT"
@@ -273,68 +273,68 @@ main() {
         status=$?
         
         if [ "$status" -ne 0 ]; then
-            log "WARNING: preflight завершился с ошибкой ($status), продолжаю установку."
+            log "WARNING: preflight failed ($status), continuing installation."
         else
-            log "preflight завершился успешно."
+            log "preflight completed successfully."
         fi
     else
-        log "preflight не найден — пропускаю."
+        log "preflight not found - skipping."
     fi
-    
-    # 3) Распаковываем payload
-    log "Распаковываю payload из: $ARCHIVE_FILE"
+
+    # 3) Extract the payload
+    log "Extracting payload from: $ARCHIVE_FILE"
     (
         cd "$EXTRACTED_DIR" || exit 1
         [ -f "$ARCHIVE_FILE" ] || {
-            echo "Archive не найден по пути: $ARCHIVE_FILE" >&2
+            echo "Archive not found at path: $ARCHIVE_FILE" >&2
             exit 1
         }
         gunzip -dc "$ARCHIVE_FILE" | pax -r
     ) >>"$LOG_FILE" 2>&1
     status=$?
-    [ "$status" -eq 0 ] || fail "Не удалось распаковать Archive.pax.gz. См. лог: $LOG_FILE"
-    
-    # 4) Копируем только то, что реально есть
+    [ "$status" -eq 0 ] || fail "Failed to extract Archive.pax.gz. See log: $LOG_FILE"
+
+    # 4) Copy only what is actually present
     if [ -d "$EXTRACTED_DIR/Applications" ]; then
-        log "Найдена папка Applications в payload."
+        log "Applications directory found in the payload."
         copy_tree_contents "$EXTRACTED_DIR/Applications" "/Applications" "$APPS_LIST"
     else
-        log "Applications в payload отсутствует."
+        log "Applications directory is not present in the payload."
     fi
-    
+
     if [ -d "$EXTRACTED_DIR/Library" ]; then
-        log "Найдена папка Library в payload."
+        log "Library directory found in the payload."
         copy_tree_contents "$EXTRACTED_DIR/Library" "/Library" "$LIB_LIST"
     else
-        log "Library в payload отсутствует."
+        log "Library directory is not present in the payload."
     fi
-    
-    # 5) Права только для установленных объектов
-    log "Применяю chmod только к установленным из пакета объектам..."
+
+    # 5) Permissions only for installed items
+    log "Applying chmod only to items installed from the package..."
     apply_chmod_list "$APPS_LIST"
     apply_chmod_list "$LIB_LIST"
-    
-    # 6) Снимаем quarantine только с установленных объектов
-    log "Удаляю quarantine только у установленных из пакета объектов..."
+
+    # 6) Remove quarantine only from installed items
+    log "Removing quarantine only from items installed from the package..."
     apply_unquarantine_list "$APPS_LIST"
     apply_unquarantine_list "$LIB_LIST"
-    
+
     # 7) postflight
     if [ -n "${POSTFLIGHT:-}" ] && [ -f "$POSTFLIGHT" ]; then
-        log "Найден postflight: $POSTFLIGHT"
-        log "Запускаю postflight..."
+        log "Found postflight: $POSTFLIGHT"
+        log "Running postflight..."
         (
             cd "$(dirname "$POSTFLIGHT")" || exit 1
             sudo sh "$POSTFLIGHT"
         ) >>"$LOG_FILE" 2>&1
         status=$?
-        [ "$status" -eq 0 ] || fail "postflight завершился с ошибкой ($status)"
+        [ "$status" -eq 0 ] || fail "postflight failed ($status)"
     else
-        log "postflight не найден — пропускаю."
+        log "postflight not found - skipping."
     fi
-    
-    log "Установка завершена успешно."
-    log "Лог сохранён в: $LOG_FILE"
+
+    log "Installation completed successfully."
+    log "Log saved to: $LOG_FILE"
     
     cleanup
     exit 0
