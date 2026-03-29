@@ -85,8 +85,26 @@ run_sudo_warn() {
 
 usage() {
     cat <<EOF
+install_legacy_zynaptiq_pkg.sh
+Copyright (c) Zen Leo. Developed by Zen Leo.
+
+Purpose:
+  This script helps install legacy Zynaptiq .pkg packages on modern macOS
+  systems when the original installer package is no longer fully compatible
+  with current macOS packaging and installation behavior.
+
+Problem it solves:
+  Some older Zynaptiq installers contain a valid payload, but the standard
+  installation flow may fail or behave incorrectly on newer macOS versions.
+  This script manually extracts the package contents, copies the actual files
+  into place, applies permissions, removes quarantine attributes, and runs
+  optional preflight/postflight scripts when available.
+
 Usage:
   sh $SCRIPT_NAME "/path/to/file.pkg"
+  sh $SCRIPT_NAME -h
+  sh $SCRIPT_NAME --help
+  sh $SCRIPT_NAME help
 
 What it does:
   1) Locates the payload inside the pkg
@@ -188,11 +206,35 @@ apply_unquarantine_list() {
 }
 
 main() {
+    if [ $# -eq 1 ]; then
+        case "$1" in
+            -h|--help|help)
+                usage
+                exit 0
+                ;;
+        esac
+    fi
+
     [ $# -eq 1 ] || {
-        usage
+        printf '%s\n\n' "Error: expected exactly one package path argument." >&2
+        usage >&2
         exit 1
     }
-    
+
+    case "$1" in
+        -*)
+            printf '%s\n\n' "Error: unknown option: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+
+    [ -n "$1" ] || {
+        printf '%s\n\n' "Error: package path was not provided." >&2
+        usage >&2
+        exit 1
+    }
+
     need_cmd find
     need_cmd mktemp
     need_cmd pax
