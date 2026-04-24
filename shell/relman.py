@@ -18,9 +18,8 @@ conda create -n relman python=3.12
 conda activate relman
 
 2) Установка зависимостей:
-python -m pip install python-gitlab
-python -m pip install "typer[all]"
-python -m pip install jira
+python -m pip install --upgrade pip
+python -m pip install python-gitlab "typer[all]" rich jira requests pyyaml
 
 Переменные окружения по умолчанию:
 - GITLAB_TOKEN — токен для GitLab (private token или PAT)
