@@ -1,4 +1,4 @@
-package ru.kuramshindev;
+package ru.kuramshindev.pubsubbroker;
 
 public interface Subscription extends AutoCloseable {
     @Override

@@ -1,6 +1,9 @@
 package ru.kuramshindev;
 
 import org.junit.jupiter.api.Test;
+import ru.kuramshindev.pubsubbroker.InMemoryPubSubBroker;
+import ru.kuramshindev.pubsubbroker.PubSubBroker;
+import ru.kuramshindev.pubsubbroker.Subscription;
 
 import java.util.ArrayList;
 import java.util.List;

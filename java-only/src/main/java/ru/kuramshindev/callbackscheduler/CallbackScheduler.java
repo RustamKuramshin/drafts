@@ -1,4 +1,4 @@
-package ru.kuramshindev;
+package ru.kuramshindev.callbackscheduler;
 
 import java.time.Instant;
 

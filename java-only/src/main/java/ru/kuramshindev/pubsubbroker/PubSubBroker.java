@@ -1,4 +1,4 @@
-package ru.kuramshindev;
+package ru.kuramshindev.pubsubbroker;
 
 import java.util.function.Consumer;
 

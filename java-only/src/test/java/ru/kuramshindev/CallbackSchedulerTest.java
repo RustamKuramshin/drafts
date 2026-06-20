@@ -3,6 +3,8 @@ package ru.kuramshindev;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import ru.kuramshindev.callbackscheduler.CallbackScheduler;
+import ru.kuramshindev.callbackscheduler.CallbackSchedulerImpl;
 
 import java.time.Instant;
 

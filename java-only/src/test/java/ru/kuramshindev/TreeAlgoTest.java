@@ -1,11 +1,9 @@
-package ru.kuramshindev.algorithms.tree;
+package ru.kuramshindev;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import ru.kuramshindev.TreeAlgo;
-import ru.kuramshindev.TreeNode;
 
 class TreeAlgoTest {
 
