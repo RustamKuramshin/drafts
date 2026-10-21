@@ -1,4 +1,4 @@
-package ru.kuramshindev;
+package ru.kuramshindev.tree;
 
 public class TreeAlgo {
 
